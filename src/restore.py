@@ -43,7 +43,7 @@ class main_gui:
         self.refresh_file_list()
 
     def go_home(self, o):
-        self.cur_dir = '/'
+        self.cur_dir = os.path.expanduser("~")
         self.xml.get_widget('location_field').set_current_folder(self.cur_dir)
         self.refresh_file_list()
 
@@ -70,7 +70,8 @@ class main_gui:
             self.selected_backup = None
             self.xml.get_widget('restore_button').set_sensitive(False)
         else:
-            self.xml.get_widget('restore_button').set_sensitive(True)
+            #self.xml.get_widget('restore_button').set_sensitive(True)
+            pass
         self.refresh_file_list()
         
     def run_backup(self, o):
@@ -190,8 +191,13 @@ class prefs_gui:
         for n in self.included_dirs:
             self.included_dirs_liststore.append( (n,) )
             
-    def include_dir_key_press(self, o1, o2):
-        print o1, o2
+    def include_dir_key_press(self, treeview, o2):
+        if o2.keyval==gtk.keysyms.Delete:
+            print 'woot!!!'
+            selection = treeview.get_selection()
+            liststore, rows = selection.get_selected_rows()
+            self.included_dirs.remove( liststore[rows[0]][0] )
+            self.refresh_included_dirs_list()
 
     def __init__(self, o):
         self.xml = o.xml
