@@ -3,6 +3,8 @@ import dircache
 import desktop
 import gconf
 import pickle
+from datetime import datetime
+from time import strptime
 
 try:
      import pygtk
@@ -17,15 +19,60 @@ try:
 except:
     sys.exit(1)
 
-import backup
 
 client = gconf.client_get_default()
 client.add_dir ("/apps/flyback", gconf.CLIENT_PRELOAD_NONE)
+
+
+class backup:
+    
+    parent_backup_dir = None
+
+    def get_available_backups(self):
+        self.parent_backup_dir = client.get_string("/apps/flyback/external_storage_location")
+        print 'self.parent_backup_dir', self.parent_backup_dir
+        try:
+            dirs = dircache.listdir(self.parent_backup_dir)
+            dir_datetimes = []
+            for dir in dirs:
+                dir_datetimes.append( datetime(*strptime(dir, "%Y-%m-%d %H:%M:%S")[0:6]) )
+            dir_datetimes.sort(reverse=True)
+            return dir_datetimes
+        except:
+            return []
+        
+    
+    def get_latest_backup_dir(self):
+        try:
+            return get_available_backups()[0]
+        except:
+            return None
+            
+    def backup(self):
+        print 'parent_backup_dir', self.parent_backup_dir
+        latest_backup_dir = self.get_latest_backup_dir()
+        s = client.get_string("/apps/flyback/included_dirs")
+        if s:
+            self.dirs_to_backup = pickle.loads(s)
+        print 'dirs_to_backup', self.dirs_to_backup
+        new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if latest_backup_dir:
+            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
+            for dir in self.dirs_to_backup:
+                os.system("mkdir -p '%s'" % new_backup + dir)
+                os.system("rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir))
+        else:
+            for dir in self.dirs_to_backup:
+                os.system("mkdir -p '%s'" % new_backup + dir)
+                os.system("rsync -av --delete '%s/' '%s/'" % (dir, new_backup + dir))
+        os.system(" chmod -R -w '%s'" % new_backup)
+
 
 class main_gui:
     
     xml = None
     selected_backup = None
+    backup = backup()
     cur_dir = '/'
     available_backup_list = gtk.ListStore(gobject.TYPE_STRING)
     file_list = gtk.ListStore(gobject.TYPE_STRING)
@@ -76,7 +123,7 @@ class main_gui:
         
     def run_backup(self, o):
         self.xml.get_widget('progressbar').pulse()
-        backup.backup()
+        self.backup.backup()
         self.refresh_available_backup_list()
         
     def refresh_all(self, o):
@@ -86,14 +133,14 @@ class main_gui:
     def refresh_available_backup_list(self):
         self.available_backup_list.clear()
         self.available_backup_list.append( ('now',) )
-        for n in backup.get_available_backups():
+        for n in self.backup.get_available_backups():
             self.available_backup_list.append( (n,) )
             
     def refresh_file_list(self):
         self.xml.get_widget('pardir_button').set_sensitive( self.cur_dir != '/' )
         self.file_list.clear()
         if self.selected_backup:
-            focus_dir = backup.parent_backup_dir +'/'+ self.selected_backup + self.cur_dir
+            focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup + self.cur_dir
         else:
             focus_dir = self.cur_dir
         print 'focus_dir', focus_dir
@@ -160,6 +207,7 @@ class main_gui:
         self.xml.get_widget('menuitem_quit').connect('activate', gtk.main_quit)
         
         self.xml.get_widget('location_field').set_current_folder(self.cur_dir)
+
 
 class prefs_gui:
     
@@ -234,8 +282,8 @@ class prefs_gui:
 
         
         self.xml.get_widget('prefs_dialog').show()
-        
 
+        
     
 if __name__ == "__main__":
     main_gui()
