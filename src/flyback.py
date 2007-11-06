@@ -375,6 +375,7 @@ class backup:
     xml = None
     main_gui = None
     parent_backup_dir = None
+    dirs_to_backup = []
 
     def __init__(self, o):
         self.xml = o.xml
@@ -410,6 +411,16 @@ class backup:
         s = client.get_string("/apps/flyback/included_dirs")
         if s:
             self.dirs_to_backup = pickle.loads(s)
+        
+        if not self.dirs_to_backup:
+            error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+            error.connect('response', lambda x,y: error.destroy())
+            error.set_markup('No directories set to backup.  Please add something to the "included dirs" list in the preferences window.')
+            error.show()
+            return
+
+        self.xml.get_widget('backup_output').show()
+        
         print 'latest_backup_dir', latest_backup_dir
         print 'dirs_to_backup', self.dirs_to_backup
         new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -424,13 +435,14 @@ class backup:
                 os.system("mkdir -p '%s'" % new_backup + dir)
                 cmd = "rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
                 text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
-                handle = os.popen(cmd)
-                for line in handle:
+                stdin, stdout = os.popen4(cmd)
+                for line in stdout:
                     text_buffer.insert( text_buffer.get_end_iter(), line )
-                    text_view.scroll_to_mark(text_buffer.get_end_iter(), 0.1)
+                    text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
                     gtk.gdk.threads_leave()
                 text_buffer.insert( text_buffer.get_end_iter(), '\n' )
-                handle.close()
+                stdin.close()
+                stdout.close()
         else:
             for dir in self.dirs_to_backup:
                 print 'woot2'
@@ -496,10 +508,8 @@ class main_gui:
         
     def run_backup(self, o):
         # self.xml.get_widget('progressbar').pulse()
-        self.xml.get_widget('backup_output').show()
         thr = threading.Thread(target= self.backup.backup)
         thr.start()
-#        self.backup.backup()
         
     def refresh_all(self, o):
         self.refresh_available_backup_list()
@@ -536,6 +546,7 @@ class main_gui:
         about.set_license(GPL)
         about.set_website('http://code.google.com/p/flyback/')
         about.set_authors(['Derek Anderson','http://kered.org'])
+        about.connect('response', lambda x,y: about.destroy())
         about.show()
     
     def show_prefs_dialog(self, o=None):
