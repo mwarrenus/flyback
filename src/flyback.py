@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+VERSION = 'v0.2.1'
 GPL = '''
             GNU GENERAL PUBLIC LICENSE
                Version 2, June 1991
@@ -636,9 +637,9 @@ class main_gui:
     def show_about_dialog(self, o):
         about = gtk.AboutDialog()
         about.set_name('FlyBack')
-        about.set_version('v0.1')
+        about.set_version(VERSION)
         about.set_copyright('Copyright (c) 2007 Derek Anderson')
-        about.set_comments('''FlyBack is a backup and recovery tool loosley modeled after Apple's new "Time Machine".''')
+        about.set_comments('''FlyBack is a backup and recovery tool loosely modeled after Apple's new "Time Machine".''')
         about.set_license(GPL)
         about.set_website('http://code.google.com/p/flyback/')
         about.set_authors(['Derek Anderson','http://kered.org'])
