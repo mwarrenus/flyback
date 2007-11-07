@@ -422,7 +422,6 @@ class backup:
 
         gtk.gdk.threads_enter()
         self.xml.get_widget('backup_button').set_sensitive(False)
-        self.xml.get_widget('backup_output').show()
         gtk.gdk.threads_leave()
         
         print 'latest_backup_dir', latest_backup_dir
@@ -582,7 +581,14 @@ class main_gui:
                 error.show()
                 return True
             else:
-                gtk.main_quit() 
+                gtk.main_quit()
+                
+    def show_hide_output(self, o):
+        if o.get_active():
+            self.xml.get_widget('scrolledwindow_backup_output').show()
+        else:
+            self.xml.get_widget('scrolledwindow_backup_output').hide()
+        client.set_bool("/apps/flyback/show_output", o.get_active())
     
     def __init__(self):
         
@@ -596,7 +602,6 @@ class main_gui:
         icon = main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)
         main_window.set_icon(icon)
         self.xml.get_widget('prefs_dialog').connect("delete-event", self.hide_window)
-        self.xml.get_widget('backup_output').connect("delete-event", self.hide_window)
     
         # build the model for the available backups list
         self.refresh_available_backup_list()
@@ -633,9 +638,15 @@ class main_gui:
         self.xml.get_widget('menuitem_about').connect('activate', self.show_about_dialog)
         self.xml.get_widget('menuitem_prefs').connect('activate', lambda w: prefs_gui(self) )
         self.xml.get_widget('menuitem_quit').connect('activate', gtk.main_quit)
+        menuitem_show_output = self.xml.get_widget('menuitem_show_output')
+        menuitem_show_output.connect('activate', self.show_hide_output )
+        menuitem_show_output.set_active(client.get_bool("/apps/flyback/show_output"))
+        self.show_hide_output(menuitem_show_output)
         
         # set current folder
         self.xml.get_widget('location_field').set_current_folder(self.cur_dir)
+        
+        main_window.show()
         
         # if no external storage defined, show prefs
         if not client.get_string("/apps/flyback/external_storage_location"):
