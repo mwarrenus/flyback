@@ -387,7 +387,6 @@ class backup:
 #            error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
 #            error.set_markup('Please select an external storage location in the preferences window.')
 #            error.show()
-            print 'error'
             return []
         print 'self.parent_backup_dir', self.parent_backup_dir
         try:
@@ -419,28 +418,44 @@ class backup:
             error.show()
             return
 
+        gtk.gdk.threads_enter()
+        self.xml.get_widget('backup_button').set_sensitive(False)
         self.xml.get_widget('backup_output').show()
+        gtk.gdk.threads_leave()
         
         print 'latest_backup_dir', latest_backup_dir
         print 'dirs_to_backup', self.dirs_to_backup
         new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
+#        progressbar = self.xml.get_widget('progressbar')
+#        statusbar = self.xml.get_widget('statusbar')
+#        statusbar_context_id = statusbar.get_context_id('running backup')
+        
+        gtk.gdk.threads_enter()
         text_view = self.xml.get_widget('backup_output_text')
         text_buffer = text_view.get_buffer()
         text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
+        gtk.gdk.threads_leave()
         
         if latest_backup_dir:
             last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
             for dir in self.dirs_to_backup:
                 os.system("mkdir -p '%s'" % new_backup + dir)
                 cmd = "rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
+                gtk.gdk.threads_enter()
                 text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
+                gtk.gdk.threads_leave()
                 stdin, stdout = os.popen4(cmd)
                 for line in stdout:
+                    gtk.gdk.threads_enter()
+#                    progressbar.pulse()
+#                    statusbar.push( statusbar_context_id, line )
                     text_buffer.insert( text_buffer.get_end_iter(), line )
                     text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
                     gtk.gdk.threads_leave()
+                gtk.gdk.threads_enter()
                 text_buffer.insert( text_buffer.get_end_iter(), '\n' )
+                gtk.gdk.threads_leave()
                 stdin.close()
                 stdout.close()
         else:
@@ -450,7 +465,10 @@ class backup:
                 os.system("rsync -av --delete '%s/' '%s/'" % (dir, new_backup + dir))
         os.system(" chmod -R -w '%s'" % new_backup)
         
+        gtk.gdk.threads_enter()
         self.main_gui.refresh_available_backup_list()
+        self.xml.get_widget('backup_button').set_sensitive(True)
+        gtk.gdk.threads_leave()
 
 
 class main_gui:
@@ -461,6 +479,7 @@ class main_gui:
     cur_dir = '/'
     available_backup_list = gtk.ListStore(gobject.TYPE_STRING)
     file_list = gtk.ListStore(gobject.TYPE_STRING)
+    backup_thread = None
         
     def select_subdir(self, treeview, o1, o2):
         selection = treeview.get_selection()
@@ -505,11 +524,11 @@ class main_gui:
             #self.xml.get_widget('restore_button').set_sensitive(True)
             pass
         self.refresh_file_list()
+
         
     def run_backup(self, o):
-        # self.xml.get_widget('progressbar').pulse()
-        thr = threading.Thread(target= self.backup.backup)
-        thr.start()
+        self.backup_thread = threading.Thread(target= self.backup.backup)
+        self.backup_thread.start()
         
     def refresh_all(self, o):
         self.refresh_available_backup_list()
@@ -549,12 +568,19 @@ class main_gui:
         about.connect('response', lambda x,y: about.destroy())
         about.show()
     
-    def show_prefs_dialog(self, o=None):
-        prefs_gui(self)
-        
     def hide_window(self, window, o2):
         window.hide()
         return True
+    
+    def check_if_safe_to_quit(self, w, o):
+            if self.backup_thread and self.backup_thread.isAlive():
+                error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+                error.set_markup('A backup is running...please wait for it to finish.')
+                error.connect('response', lambda x,y: error.destroy())
+                error.show()
+                return True
+            else:
+                gtk.main_quit() 
     
     def __init__(self):
         
@@ -564,7 +590,7 @@ class main_gui:
         
         # bind the window events
         main_window = self.xml.get_widget('window1')
-        main_window.connect("destroy", gtk.main_quit)
+        main_window.connect("delete-event", self.check_if_safe_to_quit )
         icon = main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)
         main_window.set_icon(icon)
         self.xml.get_widget('prefs_dialog').connect("delete-event", self.hide_window)
@@ -603,7 +629,7 @@ class main_gui:
         
         # bind menu functions
         self.xml.get_widget('menuitem_about').connect('activate', self.show_about_dialog)
-        self.xml.get_widget('menuitem_prefs').connect('activate', self.show_prefs_dialog)
+        self.xml.get_widget('menuitem_prefs').connect('activate', lambda w: prefs_gui(self) )
         self.xml.get_widget('menuitem_quit').connect('activate', gtk.main_quit)
         
         # set current folder
@@ -621,10 +647,7 @@ class prefs_gui:
     
     included_dirs = []
     included_dirs_liststore = gtk.ListStore(gobject.TYPE_STRING)
-    
-    def hide_prefs_dialog(self, o):
-        self.xml.get_widget('prefs_dialog').hide()
-        
+            
     def save_prefs(self, o):
         client.set_string ("/apps/flyback/external_storage_location", self.xml.get_widget('external_storage_location').get_current_folder() )
         client.set_string ("/apps/flyback/included_dirs", pickle.dumps(self.included_dirs) )
@@ -662,7 +685,7 @@ class prefs_gui:
         
         # bind ok/cancel buttons
         self.xml.get_widget('prefs_dialog_ok').connect('clicked', self.save_prefs)
-        self.xml.get_widget('prefs_dialog_cancel').connect('clicked', self.hide_prefs_dialog)
+        self.xml.get_widget('prefs_dialog_cancel').connect('clicked', lambda w: self.xml.get_widget('prefs_dialog').hide() )
 
         # bind include/exclude dir buttons
         self.xml.get_widget('include_dir_add_button').connect('clicked', self.add_include_dir)
