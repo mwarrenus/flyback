@@ -735,7 +735,7 @@ class main_gui:
         
         # if no external storage defined, show prefs
         if not client.get_string("/apps/flyback/external_storage_location"):
-            self.show_prefs_dialog()
+            prefs_gui(self)
 
 
 class prefs_gui:
