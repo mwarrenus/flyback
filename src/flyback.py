@@ -390,7 +390,6 @@ class backup:
 #            error.set_markup('Please select an external storage location in the preferences window.')
 #            error.show()
             return []
-        print 'self.parent_backup_dir', self.parent_backup_dir
         try:
             dirs = dircache.listdir(self.parent_backup_dir)
             dir_datetimes = []
@@ -402,9 +401,15 @@ class backup:
             print 'error2'
             return []
         
-    
     def get_latest_backup_dir(self):
         return self.get_available_backups()[0]
+    
+    def get_backup_command(self, latest_backup_dir, dir, new_backup):
+        if latest_backup_dir:
+            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
+            return "rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
+        else:
+            return "rsync -av --delete '%s/' '%s/'" % (dir, new_backup + dir)
             
     def backup(self):
         backup_button = self.xml.get_widget('backup_button')
@@ -437,32 +442,27 @@ class backup:
         text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
         gtk.gdk.threads_leave()
         
-        if latest_backup_dir:
-            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
-            for dir in self.dirs_to_backup:
-                os.system("mkdir -p '%s'" % new_backup + dir)
-                cmd = "rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
+        
+            
+        for dir in self.dirs_to_backup:
+            os.system("mkdir -p '%s'" % new_backup + dir)
+            cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
+            gtk.gdk.threads_enter()
+            text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
+            gtk.gdk.threads_leave()
+            stdin, stdout = os.popen4(cmd)
+            for line in stdout:
                 gtk.gdk.threads_enter()
-                text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
-                gtk.gdk.threads_leave()
-                stdin, stdout = os.popen4(cmd)
-                for line in stdout:
-                    gtk.gdk.threads_enter()
 #                    progressbar.pulse()
 #                    statusbar.push( statusbar_context_id, line )
-                    text_buffer.insert( text_buffer.get_end_iter(), line )
-                    text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
-                    gtk.gdk.threads_leave()
-                gtk.gdk.threads_enter()
-                text_buffer.insert( text_buffer.get_end_iter(), '\n' )
+                text_buffer.insert( text_buffer.get_end_iter(), line )
+                text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
                 gtk.gdk.threads_leave()
-                stdin.close()
-                stdout.close()
-        else:
-            for dir in self.dirs_to_backup:
-                print 'woot2'
-                os.system("mkdir -p '%s'" % new_backup + dir)
-                os.system("rsync -av --delete '%s/' '%s/'" % (dir, new_backup + dir))
+            gtk.gdk.threads_enter()
+            text_buffer.insert( text_buffer.get_end_iter(), '\n' )
+            gtk.gdk.threads_leave()
+            stdin.close()
+            stdout.close()
         os.system(" chmod -R -w '%s'" % new_backup)
         
         gtk.gdk.threads_enter()
@@ -525,7 +525,6 @@ class main_gui:
             #self.xml.get_widget('restore_button').set_sensitive(True)
             pass
         self.refresh_file_list()
-
         
     def run_backup(self, o):
         self.backup_thread = threading.Thread(target= self.backup.backup)
@@ -548,7 +547,6 @@ class main_gui:
             focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup + self.cur_dir
         else:
             focus_dir = self.cur_dir
-        print 'focus_dir', focus_dir
         try:
             dirs = dircache.listdir(focus_dir)
             #dircache.annotate('/', dirs)
@@ -576,7 +574,7 @@ class main_gui:
     def check_if_safe_to_quit(self, w, o):
             if self.backup_thread and self.backup_thread.isAlive():
                 error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
-                error.set_markup('A backup is running...please wait for it to finish.')
+                error.set_markup("""<b>Backup Running</b>\n\nA backup is currently running...\nPlease wait for it to finish before exiting.""")
                 error.connect('response', lambda x,y: error.destroy())
                 error.show()
                 return True
@@ -621,6 +619,7 @@ class main_gui:
         file_list_widget = self.xml.get_widget('file_list')
         file_list_widget.set_model(self.file_list)
         file_list_widget.set_headers_visible(True)
+        file_list_widget.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         renderer = gtk.CellRendererText()
         column = gtk.TreeViewColumn("file", renderer, text=0)
         num = file_list_widget.append_column(column)
@@ -692,7 +691,6 @@ class prefs_gui:
         self.main_gui = o
         
         s = client.get_string("/apps/flyback/included_dirs")
-        print s
         if s:
             self.included_dirs = pickle.loads(s)
         
