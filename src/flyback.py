@@ -407,7 +407,7 @@ class backup:
         return self.get_available_backups()[0]
             
     def backup(self):
-        print 'parent_backup_dir', self.parent_backup_dir
+        backup_button = self.xml.get_widget('backup_button')
         latest_backup_dir = self.get_latest_backup_dir()
         s = client.get_string("/apps/flyback/included_dirs")
         if s:
@@ -421,11 +421,10 @@ class backup:
             return
 
         gtk.gdk.threads_enter()
-        self.xml.get_widget('backup_button').set_sensitive(False)
+        backup_button.set_label('Backup is running...')
+        backup_button.set_sensitive(False)
         gtk.gdk.threads_leave()
         
-        print 'latest_backup_dir', latest_backup_dir
-        print 'dirs_to_backup', self.dirs_to_backup
         new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
 #        progressbar = self.xml.get_widget('progressbar')
@@ -468,7 +467,8 @@ class backup:
         
         gtk.gdk.threads_enter()
         self.main_gui.refresh_available_backup_list()
-        self.xml.get_widget('backup_button').set_sensitive(True)
+        backup_button.set_label('Backup')
+        backup_button.set_sensitive(True)
         gtk.gdk.threads_leave()
 
 
