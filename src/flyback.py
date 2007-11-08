@@ -268,7 +268,7 @@ class main_gui:
 
     def go_home(self, o):
         self.cur_dir = os.path.expanduser("~")
-        self.xml.get_widget('location_field').set_current_folder(self.cur_dir)
+        self.xml.get_widget('location_field').set_text(self.cur_dir)
         self.refresh_file_list()
 
     def select_pardir(self, o):
