@@ -28,6 +28,7 @@ import pickle
 from datetime import datetime
 from time import strptime
 import threading
+import help_data
 
 try:
      import pygtk
@@ -55,7 +56,8 @@ class backup:
     xml = None
     main_gui = None
     parent_backup_dir = None
-    dirs_to_backup = []
+    included_dirs = []
+    excluded_patterns = []
 
     def __init__(self, o):
         self.xml = o.xml
@@ -86,11 +88,14 @@ class backup:
             return None
     
     def get_backup_command(self, latest_backup_dir, dir, new_backup):
+        eds = []
+        for x in self.excluded_patterns:
+            eds.append( '--exclude="%s"' % x )
         if latest_backup_dir:
             last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
-            return "rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
+            return "rsync -av "+ ' '.join(eds) +" --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
         else:
-            return "rsync -av --delete '%s/' '%s/'" % (dir, new_backup + dir)
+            return "rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
     def run_cmd_output_gui(self, cmd):
         text_view = self.xml.get_widget('backup_output_text')
@@ -118,10 +123,13 @@ class backup:
         backup_button = self.xml.get_widget('backup_button')
         latest_backup_dir = self.get_latest_backup_dir()
         s = client.get_string("/apps/flyback/included_dirs")
-        if s:
-            self.dirs_to_backup = pickle.loads(s)
+        if s: self.included_dirs = pickle.loads(s)
+        else: self.included_dirs = []
+        s = client.get_string("/apps/flyback/excluded_patterns")
+        if s: self.excluded_patterns = pickle.loads(s)
+        else: self.excluded_patterns = []
         
-        if not self.dirs_to_backup:
+        if not self.included_dirs:
             error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
             error.connect('response', lambda x,y: error.destroy())
             error.set_markup('No directories set to backup.  Please add something to the "included dirs" list in the preferences window.')
@@ -137,7 +145,7 @@ class backup:
         text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
         gtk.gdk.threads_leave()
         
-        for dir in self.dirs_to_backup:
+        for dir in self.included_dirs:
             self.run_cmd_output_gui("mkdir -p '%s'" % new_backup + dir)
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
             self.run_cmd_output_gui(cmd)
@@ -357,6 +365,7 @@ class main_gui:
         icon = main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)
         main_window.set_icon(icon)
         self.xml.get_widget('prefs_dialog').connect("delete-event", self.hide_window)
+        self.xml.get_widget('help_window').connect("delete-event", self.hide_window)
     
         # build the model for the available backups list
         self.refresh_available_backup_list()
@@ -417,12 +426,13 @@ class prefs_gui:
     
     included_dirs = []
     included_dirs_liststore = gtk.ListStore(gobject.TYPE_STRING)
-    excluded_dirs = []
-    excluded_dirs_liststore = gtk.ListStore(gobject.TYPE_STRING)
+    excluded_patterns = []
+    excluded_patterns_liststore = gtk.ListStore(gobject.TYPE_STRING)
             
     def save_prefs(self, o):
         client.set_string ("/apps/flyback/external_storage_location", self.xml.get_widget('external_storage_location').get_current_folder() )
         client.set_string ("/apps/flyback/included_dirs", pickle.dumps(self.included_dirs) )
+        client.set_string ("/apps/flyback/excluded_patterns", pickle.dumps(self.excluded_patterns) )
         self.xml.get_widget('prefs_dialog').hide()
         self.main_gui.refresh_available_backup_list()
         
@@ -447,24 +457,28 @@ class prefs_gui:
             self.refresh_included_dirs_list()
 
     def add_exclude_dir(self, o):
-            new_dir =  self.xml.get_widget('exclude_dir_filechooser').get_current_folder()
-            if new_dir not in self.excluded_dirs:
-                self.excluded_dirs.append(new_dir)
-                self.excluded_dirs.sort()
-                self.refresh_excluded_dirs_list()
+            new_dir =  self.xml.get_widget('pattern_exclude').get_text()
+            if new_dir not in self.excluded_patterns:
+                self.excluded_patterns.append(new_dir)
+                self.excluded_patterns.sort()
+                self.refresh_excluded_patterns_list()
 
-    def refresh_excluded_dirs_list(self):
-        self.excluded_dirs_liststore.clear()
-        for n in self.excluded_dirs:
-            self.excluded_dirs_liststore.append( (n,) )
+    def refresh_excluded_patterns_list(self):
+        self.excluded_patterns_liststore.clear()
+        for n in self.excluded_patterns:
+            self.excluded_patterns_liststore.append( (n,) )
             
     def exclude_dir_key_press(self, treeview, o2):
         if o2.keyval==gtk.keysyms.Delete:
             print 'woot!!!'
             selection = treeview.get_selection()
             liststore, rows = selection.get_selected_rows()
-            self.excluded_dirs.remove( liststore[rows[0]][0] )
-            self.refresh_excluded_dirs_list()
+            self.excluded_patterns.remove( liststore[rows[0]][0] )
+            self.refresh_excluded_patterns_list()
+
+    def show_excluded_patterns_help(self, o):
+        self.xml.get_widget('help_text').get_buffer().set_text(help_data.EXCLUDED_PATTERNS)
+        self.xml.get_widget('help_window').show()
 
     def __init__(self, o):
         self.xml = o.xml
@@ -473,9 +487,9 @@ class prefs_gui:
         s = client.get_string("/apps/flyback/included_dirs")
         if s:
             self.included_dirs = pickle.loads(s)
-        s = client.get_string("/apps/flyback/excluded_dirs")
+        s = client.get_string("/apps/flyback/excluded_patterns")
         if s:
-            self.excluded_dirs = pickle.loads(s)
+            self.excluded_patterns = pickle.loads(s)
         
         # bind ok/cancel buttons
         self.xml.get_widget('prefs_dialog_ok').connect('clicked', self.save_prefs)
@@ -484,8 +498,9 @@ class prefs_gui:
         # bind include/exclude dir buttons
         self.xml.get_widget('include_dir_add_button').connect('clicked', self.add_include_dir)
         self.xml.get_widget('dirs_include').connect('key-press-event', self.include_dir_key_press)
-        self.xml.get_widget('exclude_dir_add_button').connect('clicked', self.add_exclude_dir)
-        self.xml.get_widget('dirs_exclude').connect('key-press-event', self.exclude_dir_key_press)
+        self.xml.get_widget('button_add_pattern_exclude').connect('clicked', self.add_exclude_dir)
+        self.xml.get_widget('patterns_exclude').connect('key-press-event', self.exclude_dir_key_press)
+        self.xml.get_widget('help_pattern_exclude').connect('clicked', self.show_excluded_patterns_help)
 
         # build include/exclude lists
         dirs_includet_widget = self.xml.get_widget('dirs_include')
@@ -496,14 +511,14 @@ class prefs_gui:
         if not dirs_includet_widget.get_columns():
             dirs_includet_widget.append_column(column)
         self.refresh_included_dirs_list()
-        dirs_excludet_widget = self.xml.get_widget('dirs_exclude')
-        dirs_excludet_widget.set_model(self.excluded_dirs_liststore)
+        dirs_excludet_widget = self.xml.get_widget('patterns_exclude')
+        dirs_excludet_widget.set_model(self.excluded_patterns_liststore)
         dirs_excludet_widget.set_headers_visible(True)
         renderer = gtk.CellRendererText()
-        column = gtk.TreeViewColumn("excluded dirs", renderer, text=0)
+        column = gtk.TreeViewColumn("exclude patterns", renderer, text=0)
         if not dirs_excludet_widget.get_columns():
             dirs_excludet_widget.append_column(column)
-        self.refresh_excluded_dirs_list()
+        self.refresh_excluded_patterns_list()
 
         # init external_storage_location
         external_storage_location = client.get_string("/apps/flyback/external_storage_location")
@@ -511,7 +526,6 @@ class prefs_gui:
             external_storage_location = '/external_storage_location'
         self.xml.get_widget('external_storage_location').set_current_folder( external_storage_location )
 
-        
         self.xml.get_widget('prefs_dialog').show()
 
         
