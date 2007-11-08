@@ -29,6 +29,8 @@ from datetime import datetime
 from time import strptime
 import threading
 import help_data
+import getopt
+import sys
 
 try:
      import pygtk
@@ -59,9 +61,10 @@ class backup:
     included_dirs = []
     excluded_patterns = []
 
-    def __init__(self, o):
-        self.xml = o.xml
+    def __init__(self, o=None):
         self.main_gui = o
+        if o:
+            self.xml = o.xml
 
     def get_available_backups(self):
         self.parent_backup_dir = client.get_string("/apps/flyback/external_storage_location")
@@ -98,30 +101,37 @@ class backup:
         else:
             return "rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
-    def run_cmd_output_gui(self, cmd):
-        text_view = self.xml.get_widget('backup_output_text')
-        text_buffer = text_view.get_buffer()
+    def run_cmd_output_gui(self, gui, cmd):
+        if gui:
+            text_view = self.xml.get_widget('backup_output_text')
+            text_buffer = text_view.get_buffer()
         output = []
 
-        gtk.gdk.threads_enter()
-        text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
-        gtk.gdk.threads_leave()
+        if gui:
+            gtk.gdk.threads_enter()
+            text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
+            gtk.gdk.threads_leave()
         stdin, stdout = os.popen4(cmd)
         for line in stdout:
             output.append(line)
+            if gui:
+                gtk.gdk.threads_enter()
+                text_buffer.insert( text_buffer.get_end_iter(), line )
+                text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
+                gtk.gdk.threads_leave()
+            else:
+                print line
+        if gui:
             gtk.gdk.threads_enter()
-            text_buffer.insert( text_buffer.get_end_iter(), line )
-            text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
+            text_buffer.insert( text_buffer.get_end_iter(), '\n' )
             gtk.gdk.threads_leave()
-        gtk.gdk.threads_enter()
-        text_buffer.insert( text_buffer.get_end_iter(), '\n' )
-        gtk.gdk.threads_leave()
         stdin.close()
         stdout.close()
         return output
             
-    def backup(self):
-        backup_button = self.xml.get_widget('backup_button')
+    def backup(self, gui=True):
+        if gui:
+            backup_button = self.xml.get_widget('backup_button')
         latest_backup_dir = self.get_latest_backup_dir()
         s = client.get_string("/apps/flyback/included_dirs")
         if s: self.included_dirs = pickle.loads(s)
@@ -131,32 +141,38 @@ class backup:
         else: self.excluded_patterns = []
         
         if not self.included_dirs:
-            error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
-            error.connect('response', lambda x,y: error.destroy())
-            error.set_markup('No directories set to backup.  Please add something to the "included dirs" list in the preferences window.')
-            error.show()
+            resp = 'No directories set to backup.  Please add something to the "included dirs" list in the preferences window.'
+            if gui:
+                error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+                error.connect('response', lambda x,y: error.destroy())
+                error.set_markup(resp)
+                error.show()
+            else:
+                print resp
 
         new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-        gtk.gdk.threads_enter()
-        backup_button.set_label('Backup is running...')
-        backup_button.set_sensitive(False)
-        text_view = self.xml.get_widget('backup_output_text')
-        text_buffer = text_view.get_buffer()
-        text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
-        gtk.gdk.threads_leave()
+        if gui:
+            gtk.gdk.threads_enter()
+            backup_button.set_label('Backup is running...')
+            backup_button.set_sensitive(False)
+            text_view = self.xml.get_widget('backup_output_text')
+            text_buffer = text_view.get_buffer()
+            text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
+            gtk.gdk.threads_leave()
         
         for dir in self.included_dirs:
-            self.run_cmd_output_gui("mkdir -p '%s'" % new_backup + dir)
+            self.run_cmd_output_gui(gui, "mkdir -p '%s'" % new_backup + dir)
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
-            self.run_cmd_output_gui(cmd)
-        self.run_cmd_output_gui(" chmod -R -w '%s'" % new_backup)
+            self.run_cmd_output_gui(gui, cmd)
+        self.run_cmd_output_gui(gui, " chmod -R -w '%s'" % new_backup)
         
-        gtk.gdk.threads_enter()
-        self.main_gui.refresh_available_backup_list()
-        backup_button.set_label('Backup')
-        backup_button.set_sensitive(True)
-        gtk.gdk.threads_leave()
+        if gui:
+            gtk.gdk.threads_enter()
+            self.main_gui.refresh_available_backup_list()
+            backup_button.set_label('Backup')
+            backup_button.set_sensitive(True)
+            gtk.gdk.threads_leave()
 
     def restore(self):
         restore_button = self.xml.get_widget('restore_button')
@@ -185,7 +201,7 @@ class backup:
         
         if not os.path.isdir(dest):
             cmd = "mkdir -p '%s'" % dest
-            self.run_cmd_output_gui(cmd)
+            self.run_cmd_output_gui(True,cmd)
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), cmd +'\n' )
             text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
@@ -195,19 +211,20 @@ class backup:
             print 'selected', selected
             print 'model.get', model.get( model.get_iter(selected), 0)
             local_file = model.get( model.get_iter(selected), 0)[0]
-            file = src +'/'+ local_file
+            file = src.rstrip('/') +'/'+ local_file
             print 'file', file
             if os.path.isdir(file):
-                cmd = 'cp -R "%s" "%s"' % (file, dest)
+                cmd = 'cp -vR "%s" "%s"' % (file, dest)
             else:
-                cmd = 'cp "%s" "%s"' % (file, dest)
-            self.run_cmd_output_gui(cmd)
-            dest_file = self.main_gui.cur_dir +'/'+ local_file
-            if os.path.isdir(file):
-                cmd = 'chmod -R u+w "%s"' % dest_file
-            else:
-                cmd = 'chmod u+w "%s"' % dest_file
-            self.run_cmd_output_gui(cmd)
+                cmd = 'cp -v "%s" "%s"' % (file, dest)
+            file_pairs = self.run_cmd_output_gui(True,cmd)
+#            for file_pair in file_pairs:
+#                to_f = file_pair.split(' -> ')[1].strip("'`\n")
+#                if os.path.isdir(to_f):
+#                    cmd = 'chmod -R u+w "%s"' % to_f
+#                else:
+#                    cmd = 'chmod u+w "%s"' % to_f
+#                self.run_cmd_output_gui(True,cmd)
             
         gtk.gdk.threads_enter()
         restore_button.set_label('Restore')
@@ -434,6 +451,13 @@ class prefs_gui:
         client.set_string ("/apps/flyback/external_storage_location", self.xml.get_widget('external_storage_location').get_current_folder() )
         client.set_string ("/apps/flyback/included_dirs", pickle.dumps(self.included_dirs) )
         client.set_string ("/apps/flyback/excluded_patterns", pickle.dumps(self.excluded_patterns) )
+        if self.xml.get_widget('pref_run_backup_automatically').get_active():
+            crontab = self.save_crontab()
+            client.set_string ("/apps/flyback/crontab", crontab )
+            self.install_crontab(crontab)
+        else:
+            client.set_string ("/apps/flyback/crontab", '' )
+            self.install_crontab(None)
         self.xml.get_widget('prefs_dialog').hide()
         self.main_gui.refresh_available_backup_list()
         
@@ -480,17 +504,76 @@ class prefs_gui:
     def show_excluded_patterns_help(self, o):
         self.xml.get_widget('help_text').get_buffer().set_text(help_data.EXCLUDED_PATTERNS)
         self.xml.get_widget('help_window').show()
+        
+    def load_crontab(self, s):
+        self.xml.get_widget('pref_run_backup_automatically').set_active( bool(s) )
+        min = '0'
+        hour = '3'
+        day_month = '*'
+        month = '*'
+        day_week = '*'
+        
+        try:
+            sa = s.split(' ')
+            min = str(float(sa[0]))
+            hour = sa[1]
+            day_month = sa[2]
+            month = sa[3]
+            day_week = sa[4]
+        except:
+            print 'count not parse gconf /apps/flyback/crontab - using defaults'
+        
+        self.xml.get_widget('pref_crontab_min').set_value( float(min) )
+        self.xml.get_widget('pref_crontab_hour').set_text( hour )
+        self.xml.get_widget('pref_crontab_day_month').set_text( day_month )
+        self.xml.get_widget('pref_crontab_month').set_text( month )
+        self.xml.get_widget('pref_crontab_day_week').set_text( day_week )
+
+    def save_crontab(self):
+        sa = []
+        sa.append( str(int(self.xml.get_widget('pref_crontab_min').get_value())) )
+        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_hour').get_text() ) )
+        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_day_month').get_text() ) )
+        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_month').get_text() ) )
+        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_day_week').get_text() ) )
+        return ' '.join(sa)
+    
+    def install_crontab(self, c):
+        existing_crons = []
+        
+        stdin, stdout = os.popen4('crontab -l')
+        for line in stdout:
+            if line.startswith('no crontab for'): continue
+            if line.endswith('#flyback\n'): continue
+            existing_crons.append(line)
+        if c:
+            existing_crons.append(c + ' python '+ os.getcwd() +'/flyback.py --backup #flyback\n')
+        stdin.close()
+        stdout.close()
+
+        f = open('/tmp/flyback_tmp_cron', 'w')
+        f.writelines( existing_crons )
+        f.close()
+        os.system('crontab /tmp/flyback_tmp_cron')
+    
+    def check_crontab_entry(self, s):
+        sa = s.replace(' ',',').replace(',,',',').split(',')
+        if sa:
+            return ','.join(sa)
+        else:
+            return '*'
 
     def __init__(self, o):
         self.xml = o.xml
         self.main_gui = o
         
         s = client.get_string("/apps/flyback/included_dirs")
-        if s:
-            self.included_dirs = pickle.loads(s)
+        if s: self.included_dirs = pickle.loads(s)
+        else: self.included_dirs = []
         s = client.get_string("/apps/flyback/excluded_patterns")
-        if s:
-            self.excluded_patterns = pickle.loads(s)
+        if s: self.excluded_patterns = pickle.loads(s)
+        else: self.excluded_patterns = []
+        self.load_crontab( client.get_string("/apps/flyback/crontab") )
         
         # bind ok/cancel buttons
         self.xml.get_widget('prefs_dialog_ok').connect('clicked', self.save_prefs)
@@ -530,9 +613,27 @@ class prefs_gui:
         self.xml.get_widget('prefs_dialog').show()
 
         
-    
-if __name__ == "__main__":
+
+
+
+def main():
+    # parse command line options
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], "b", ["backup"])
+    except getopt.error, msg:
+        print msg
+        print "for help use --help"
+        sys.exit(2)
+    # process options
+    for o, a in opts:
+        if o in ("-b", "--backup"):
+            backup().backup(gui=False)
+            sys.exit(0)
+
     main_gui()
     gtk.main()
 
 
+if __name__ == "__main__":
+    main()
+        
