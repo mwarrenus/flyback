@@ -91,6 +91,28 @@ class backup:
             return "rsync -av --delete --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
         else:
             return "rsync -av --delete '%s/' '%s/'" % (dir, new_backup + dir)
+    
+    def run_cmd_output_gui(self, cmd):
+        text_view = self.xml.get_widget('backup_output_text')
+        text_buffer = text_view.get_buffer()
+        output = []
+
+        gtk.gdk.threads_enter()
+        text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
+        gtk.gdk.threads_leave()
+        stdin, stdout = os.popen4(cmd)
+        for line in stdout:
+            output.append(line)
+            gtk.gdk.threads_enter()
+            text_buffer.insert( text_buffer.get_end_iter(), line )
+            text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
+            gtk.gdk.threads_leave()
+        gtk.gdk.threads_enter()
+        text_buffer.insert( text_buffer.get_end_iter(), '\n' )
+        gtk.gdk.threads_leave()
+        stdin.close()
+        stdout.close()
+        return output
             
     def backup(self):
         backup_button = self.xml.get_widget('backup_button')
@@ -116,25 +138,10 @@ class backup:
         gtk.gdk.threads_leave()
         
         for dir in self.dirs_to_backup:
-            os.system("mkdir -p '%s'" % new_backup + dir)
+            self.run_cmd_output_gui("mkdir -p '%s'" % new_backup + dir)
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
-            gtk.gdk.threads_enter()
-            text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
-            gtk.gdk.threads_leave()
-            stdin, stdout = os.popen4(cmd)
-            for line in stdout:
-                gtk.gdk.threads_enter()
-#                    progressbar.pulse()
-#                    statusbar.push( statusbar_context_id, line )
-                text_buffer.insert( text_buffer.get_end_iter(), line )
-                text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
-                gtk.gdk.threads_leave()
-            gtk.gdk.threads_enter()
-            text_buffer.insert( text_buffer.get_end_iter(), '\n' )
-            gtk.gdk.threads_leave()
-            stdin.close()
-            stdout.close()
-        os.system(" chmod -R -w '%s'" % new_backup)
+            self.run_cmd_output_gui(cmd)
+        self.run_cmd_output_gui(" chmod -R -w '%s'" % new_backup)
         
         gtk.gdk.threads_enter()
         self.main_gui.refresh_available_backup_list()
@@ -169,7 +176,7 @@ class backup:
         
         if not os.path.isdir(dest):
             cmd = "mkdir -p '%s'" % dest
-            os.system(cmd)
+            self.run_cmd_output_gui(cmd)
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), cmd +'\n' )
             text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
@@ -185,26 +192,13 @@ class backup:
                 cmd = 'cp -R "%s" "%s"' % (file, dest)
             else:
                 cmd = 'cp "%s" "%s"' % (file, dest)
-            stdin, stdout = os.popen4(cmd)
-            for line in stdout:
-                gtk.gdk.threads_enter()
-                text_buffer.insert( text_buffer.get_end_iter(), line )
-                text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
-                gtk.gdk.threads_leave()
+            self.run_cmd_output_gui(cmd)
             dest_file = self.main_gui.cur_dir +'/'+ local_file
-            gtk.gdk.threads_enter()
-            text_buffer.insert( text_buffer.get_end_iter(), cmd +'\n' )
-            text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
-            gtk.gdk.threads_leave()
             if os.path.isdir(file):
                 cmd = 'chmod -R u+w "%s"' % dest_file
             else:
                 cmd = 'chmod u+w "%s"' % dest_file
-            os.system(cmd)
-            gtk.gdk.threads_enter()
-            text_buffer.insert( text_buffer.get_end_iter(), cmd +'\n' )
-            text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
-            gtk.gdk.threads_leave()
+            self.run_cmd_output_gui(cmd)
             
         gtk.gdk.threads_enter()
         restore_button.set_label('Restore')
