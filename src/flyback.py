@@ -70,6 +70,7 @@ class backup:
 #            error.set_markup('Please select an external storage location in the preferences window.')
 #            error.show()
             return []
+        self.parent_backup_dir += '/flyback'
         try:
             dirs = dircache.listdir(self.parent_backup_dir)
             dir_datetimes = []
