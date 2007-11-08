@@ -20,7 +20,6 @@
 import os, sys
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-print RUN_FROM_DIR
 VERSION = 'v0.2.1'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 
@@ -84,7 +83,7 @@ class backup:
             dir_datetimes.sort(reverse=True)
             return dir_datetimes
         except:
-            print 'error2'
+            print 'no available backups found'
             return []
         
     def get_latest_backup_dir(self):
@@ -99,9 +98,9 @@ class backup:
             eds.append( '--exclude="%s"' % x )
         if latest_backup_dir:
             last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
-            return "rsync -av "+ ' '.join(eds) +" --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
+            return "nice -n19 rsync -av "+ ' '.join(eds) +" --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
         else:
-            return "rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
+            return "nice -n19 rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
     def run_cmd_output_gui(self, gui, cmd):
         if gui:
