@@ -17,10 +17,13 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-VERSION = 'v0.2.1'
-GPL = open( 'GPL.txt', 'r' ).read()
+import os, sys
 
-import os
+RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
+print RUN_FROM_DIR
+VERSION = 'v0.2.1'
+GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
+
 import dircache
 import desktop
 import gconf
@@ -30,7 +33,6 @@ from time import strptime
 import threading
 import help_data
 import getopt
-import sys
 
 try:
      import pygtk
@@ -373,7 +375,7 @@ class main_gui:
     def __init__(self):
         
         gnome.init("programname", "version")
-        self.xml = gtk.glade.XML('viewer.glade')
+        self.xml = gtk.glade.XML(RUN_FROM_DIR + 'viewer.glade')
         o = self
         self.backup = backup(o)
         
