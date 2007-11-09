@@ -17,10 +17,10 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import os, sys
+import os, sys, traceback
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-VERSION = 'v0.2.1'
+VERSION = 'v0.3.0'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 
 import dircache
@@ -53,6 +53,20 @@ gtk.gdk.threads_init()
 client = gconf.client_get_default()
 client.add_dir ("/apps/flyback", gconf.CLIENT_PRELOAD_NONE)
 
+lockfile = client.get_string("/apps/flyback/external_storage_location") +'/flyback/lockfile.txt'
+
+def get_external_storage_location_lock():
+    if os.path.isfile(lockfile):
+        return False
+    else:
+        f = open(lockfile,'w')
+        f.write('delete this if FlyBack has crashed/been killed and refuses to start a new backup.\n')
+        f.close()
+        return True
+
+def release_external_storage_location_lock():
+    os.remove(lockfile)
+
 
 class backup:
     
@@ -75,21 +89,27 @@ class backup:
 #            error.show()
             return []
         self.parent_backup_dir += '/flyback'
-        try:
+#        try:
+        if True:
             dirs = dircache.listdir(self.parent_backup_dir)
             dir_datetimes = []
             for dir in dirs:
-                dir_datetimes.append( datetime(*strptime(dir, "%Y-%m-%d %H:%M:%S")[0:6]) )
+                try:
+                    dir_datetimes.append( datetime(*strptime(dir, "%Y-%m-%d %H:%M:%S")[0:6]) )
+                except:
+                    pass # file not a backup
             dir_datetimes.sort(reverse=True)
             return dir_datetimes
-        except:
-            print 'no available backups found'
-            return []
+#        except:
+#            print 'no available backups found'
+#            traceback.print_stack()
+#            return []
         
     def get_latest_backup_dir(self):
-        try:
-            return self.get_available_backups()[0]
-        except:
+        available_backups = self.get_available_backups()
+        if available_backups:
+            return available_backups[0]
+        else:
             return None
     
     def get_backup_command(self, latest_backup_dir, dir, new_backup):
@@ -133,6 +153,18 @@ class backup:
     def backup(self, gui=True):
         if gui:
             backup_button = self.xml.get_widget('backup_button')
+
+        if not get_external_storage_location_lock():
+            msg = "The external storage location you've specified is already in use.  Please quit any other open instances of FlyBack (or wait for their backups to complete) before starting a new backup."
+            if gui:
+                error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+                error.set_markup("<b>External Storage Location Locked</b>\n\n"+msg)
+                error.connect('response', lambda x,y: error.destroy())
+                error.show()
+            else:
+                print msg
+            return
+
         latest_backup_dir = self.get_latest_backup_dir()
         s = client.get_string("/apps/flyback/included_dirs")
         if s: self.included_dirs = pickle.loads(s)
@@ -167,6 +199,8 @@ class backup:
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
             self.run_cmd_output_gui(gui, cmd)
         self.run_cmd_output_gui(gui, " chmod -R -w '%s'" % new_backup)
+        
+        release_external_storage_location_lock()
         
         if gui:
             gtk.gdk.threads_enter()
@@ -370,7 +404,7 @@ class main_gui:
         else:
             self.xml.get_widget('scrolledwindow_backup_output').hide()
         client.set_bool("/apps/flyback/show_output", o.get_active())
-    
+        
     def __init__(self):
         
         gnome.init("programname", "version")
