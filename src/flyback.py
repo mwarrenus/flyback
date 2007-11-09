@@ -647,9 +647,6 @@ class prefs_gui:
 
         self.xml.get_widget('prefs_dialog').show()
 
-        
-
-
 
 def main():
     # parse command line options
