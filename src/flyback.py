@@ -24,6 +24,39 @@ VERSION = 'v0.3.1'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 BACKUP_DIR_DATE_FORMAT = "%Y%m%d_%H%M%S.backup"
 
+DEFAULT_EXCLUDES = [
+    '/**/.thumbnails/',
+    '/**/.mozilla/**/Cache/',
+    '/**/.cache/tracker/',
+    '/**/.Trash/',
+    '/**/.emerald/themecache/',
+    '/**/.fontconfig/*.cache*',
+    '/**/.java/deployment/cache/',
+    '/**/amarok/albumcovers/cache/',
+    '/**/amarok/albumcovers/large/',
+    '/**/.liferea*/mozilla/liferea/Cache/',
+    '/**/.liferea*/cache/',
+    '/**/.macromedia/Flash_Player/*SharedObjects/',
+    '/**/.macromedia/Macromedia/Flash\ Player/*SharedObjects/',
+    '/**/.metacity/sessions/',
+    '/**/.nautilus/saved*',
+    '/**/.mythtv/osdcache/',
+    '/**/.mythtv/themecache/',
+    '/**/var/cache/',
+    '/**/workspace/.metadata/',
+    '/**/.openoffice.org2/user/registry/cache/',
+    '/**/.openoffice.org2/user/uno_packages/cache/',
+    '/**/.grails/*/scriptCache/',
+    '/**/.wine/drive_c/windows/temp/',
+    '/dev/',
+    '/proc/',
+    '/sys/',
+    '/tmp/',
+]
+
+
+
+
 import dircache
 import desktop
 import gconf
@@ -120,12 +153,7 @@ class backup:
         eds = []
         for x in self.excluded_patterns:
             eds.append( '--exclude="%s"' % x )
-        if latest_backup_dir:
-            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
-#            last_backup = latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
-            return "nice -n19 rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
-        else:
-            return "nice -n19 rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
+        return "nice -n19 rsync -av --delete "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
     def run_cmd_output_gui(self, gui, cmd):
         if gui:
@@ -617,7 +645,7 @@ class prefs_gui:
         else: self.included_dirs = []
         s = client.get_string("/apps/flyback/excluded_patterns")
         if s: self.excluded_patterns = pickle.loads(s)
-        else: self.excluded_patterns = []
+        else: self.excluded_patterns = DEFAULT_EXCLUDES
         self.load_crontab( client.get_string("/apps/flyback/crontab") )
         
         # bind ok/cancel buttons
