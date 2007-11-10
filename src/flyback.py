@@ -22,6 +22,7 @@ import os, sys, traceback
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
 VERSION = 'v0.3.0'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
+BACKUP_DIR_DATE_FORMAT = "%Y%m%d_%H%M%S.backup"
 
 import dircache
 import desktop
@@ -53,7 +54,10 @@ gtk.gdk.threads_init()
 client = gconf.client_get_default()
 client.add_dir ("/apps/flyback", gconf.CLIENT_PRELOAD_NONE)
 
-lockfile = client.get_string("/apps/flyback/external_storage_location") +'/flyback/lockfile.txt'
+external_storage_location = client.get_string("/apps/flyback/external_storage_location")
+if not external_storage_location:
+    external_storage_location = '/external_storage_location'
+lockfile = external_storage_location +'/flyback/lockfile.txt'
 
 def get_external_storage_location_lock():
     if os.path.isfile(lockfile):
@@ -95,7 +99,7 @@ class backup:
             dir_datetimes = []
             for dir in dirs:
                 try:
-                    dir_datetimes.append( datetime(*strptime(dir, "%Y-%m-%d %H:%M:%S")[0:6]) )
+                    dir_datetimes.append( datetime(*strptime(dir, BACKUP_DIR_DATE_FORMAT)[0:6]) )
                 except:
                     pass # file not a backup
             dir_datetimes.sort(reverse=True)
@@ -117,8 +121,9 @@ class backup:
         for x in self.excluded_patterns:
             eds.append( '--exclude="%s"' % x )
         if latest_backup_dir:
-            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime("%Y-%m-%d %H:%M:%S")
-            return "nice -n19 rsync -av "+ ' '.join(eds) +" --link-dest='%s' '%s/' '%s/'" % (last_backup + dir, dir, new_backup + dir)
+            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
+#            last_backup = latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
+            return "nice -n19 rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
         else:
             return "nice -n19 rsync -av "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
@@ -183,7 +188,7 @@ class backup:
             else:
                 print resp
 
-        new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime(BACKUP_DIR_DATE_FORMAT)
 
         if gui:
             gtk.gdk.threads_enter()
@@ -193,12 +198,17 @@ class backup:
             text_buffer = text_view.get_buffer()
             text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
             gtk.gdk.threads_leave()
+
+        if latest_backup_dir:
+            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
+            self.run_cmd_output_gui(gui, "cp -al '%s' '%s'" % (last_backup, new_backup))
+            self.run_cmd_output_gui(gui, "chmod u+w '%s'" % new_backup)
         
         for dir in self.included_dirs:
             self.run_cmd_output_gui(gui, "mkdir -p '%s'" % new_backup + dir)
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
             self.run_cmd_output_gui(gui, cmd)
-        self.run_cmd_output_gui(gui, " chmod -R -w '%s'" % new_backup)
+        self.run_cmd_output_gui(gui, "chmod -w '%s'" % new_backup)
         
         release_external_storage_location_lock()
         
