@@ -356,7 +356,47 @@ class prefs_gui:
             liststore, rows = selection.get_selected_rows()
             self.excluded_patterns.remove( liststore[rows[0]][0] )
             self.refresh_excluded_patterns_list()
-
+            
+    def delete_element(self, o, i, a, f):
+        a.pop(i)
+        f()
+            
+    def include_dir_button_press_event(self, treeview, event):
+        if event.button == 3:
+            x = int(event.x)
+            y = int(event.y)
+            time = event.time
+            pthinfo = treeview.get_path_at_pos(x, y)
+            if pthinfo is not None:
+                path, col, cellx, celly = pthinfo
+                treeview.grab_focus()
+                treeview.set_cursor( path, col, 0)
+                menu = gtk.Menu()
+                delete = gtk.ImageMenuItem(stock_id=gtk.STOCK_DELETE)
+                delete.connect( 'activate', self.delete_element, pthinfo[0][0], self.included_dirs, self.refresh_included_dirs_list )
+                menu.append(delete)
+                menu.show_all()
+                menu.popup(None, None, None, event.button, event.get_time())
+            return True
+   
+    def exclude_dir_button_press_event(self, treeview, event):
+        if event.button == 3:
+            x = int(event.x)
+            y = int(event.y)
+            time = event.time
+            pthinfo = treeview.get_path_at_pos(x, y)
+            if pthinfo is not None:
+                path, col, cellx, celly = pthinfo
+                treeview.grab_focus()
+                treeview.set_cursor( path, col, 0)
+                menu = gtk.Menu()
+                delete = gtk.ImageMenuItem(stock_id=gtk.STOCK_DELETE)
+                delete.connect( 'activate', self.delete_element, pthinfo[0][0], self.excluded_patterns, self.refresh_excluded_patterns_list )
+                menu.append(delete)
+                menu.show_all()
+                menu.popup(None, None, None, event.button, event.get_time())
+            return True
+   
     def show_excluded_patterns_help(self, o):
         self.xml.get_widget('help_text').get_buffer().set_text(help_data.EXCLUDED_PATTERNS)
         self.xml.get_widget('help_window').show()
@@ -446,6 +486,7 @@ class prefs_gui:
         dirs_includet_widget = self.xml.get_widget('dirs_include')
         dirs_includet_widget.set_model(self.included_dirs_liststore)
         dirs_includet_widget.set_headers_visible(True)
+        dirs_includet_widget.connect('button-press-event', self.include_dir_button_press_event)
         renderer = gtk.CellRendererText()
         column = gtk.TreeViewColumn("included dirs", renderer, text=0)
         if not dirs_includet_widget.get_columns():
@@ -454,6 +495,7 @@ class prefs_gui:
         dirs_excludet_widget = self.xml.get_widget('patterns_exclude')
         dirs_excludet_widget.set_model(self.excluded_patterns_liststore)
         dirs_excludet_widget.set_headers_visible(True)
+        dirs_excludet_widget.connect('button-press-event', self.exclude_dir_button_press_event)
         renderer = gtk.CellRendererText()
         column = gtk.TreeViewColumn("exclude patterns", renderer, text=0)
         if not dirs_excludet_widget.get_columns():
