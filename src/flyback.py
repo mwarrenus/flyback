@@ -20,7 +20,7 @@
 import os, sys, traceback
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-VERSION = 'v0.3.0'
+VERSION = 'v0.3.1'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 BACKUP_DIR_DATE_FORMAT = "%Y%m%d_%H%M%S.backup"
 
