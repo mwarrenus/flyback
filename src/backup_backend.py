@@ -47,22 +47,29 @@ except:
 BACKUP_DIR_DATE_FORMAT = "%Y%m%d_%H%M%S.backup"
 
 client = gconf.client_get_default()
-external_storage_location = client.get_string("/apps/flyback/external_storage_location")
-if not external_storage_location:
-    external_storage_location = '/external_storage_location'
-lockfile = external_storage_location +'/flyback/lockfile.txt'
-
 
 def get_external_storage_location_lock():
+    external_storage_location = client.get_string("/apps/flyback/external_storage_location")
+    if not external_storage_location:
+        external_storage_location = '/external_storage_location'
+    lockfile = external_storage_location +'/flyback/lockfile.txt'
+
+    if not os.path.isdir( external_storage_location +'/flyback' ):
+        return "The external storage location you've specified does not exist.  Please update your preferences."
     if os.path.isfile(lockfile):
-        return False
+        return "The external storage location you've specified is already in use.  Please quit any other open instances of FlyBack (or wait for their backups to complete) before starting a new backup."
     else:
         f = open(lockfile,'w')
         f.write('delete this if FlyBack has crashed/been killed and refuses to start a new backup.\n')
         f.close()
-        return True
+        return None
 
 def release_external_storage_location_lock():
+    external_storage_location = client.get_string("/apps/flyback/external_storage_location")
+    if not external_storage_location:
+        external_storage_location = '/external_storage_location'
+    lockfile = external_storage_location +'/flyback/lockfile.txt'
+
     os.remove(lockfile)
 
 class backup:
@@ -86,8 +93,7 @@ class backup:
 #            error.show()
             return []
         self.parent_backup_dir += '/flyback'
-#        try:
-        if True:
+        try:
             dirs = dircache.listdir(self.parent_backup_dir)
             dir_datetimes = []
             for dir in dirs:
@@ -97,10 +103,10 @@ class backup:
                     pass # file not a backup
             dir_datetimes.sort(reverse=True)
             return dir_datetimes
-#        except:
-#            print 'no available backups found'
+        except:
+            print 'no available backups found'
 #            traceback.print_stack()
-#            return []
+            return []
         
     def get_latest_backup_dir(self):
         available_backups = self.get_available_backups()
@@ -113,7 +119,7 @@ class backup:
         eds = []
         for x in self.excluded_patterns:
             eds.append( '--exclude="%s"' % x )
-        return "nice -n19 rsync -av --delete "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
+        return "nice -n19 rsync -av --one-file-system --delete "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
     def run_cmd_output_gui(self, gui, cmd):
         if gui:
@@ -131,7 +137,7 @@ class backup:
             if gui:
                 gtk.gdk.threads_enter()
                 text_buffer.insert( text_buffer.get_end_iter(), line )
-                text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
+                text_view.scroll_to_mark(text_buffer.get_insert(), 0.499)
                 gtk.gdk.threads_leave()
             else:
                 print line
@@ -147,11 +153,11 @@ class backup:
         if gui:
             backup_button = self.xml.get_widget('backup_button')
 
-        if not get_external_storage_location_lock():
-            msg = "The external storage location you've specified is already in use.  Please quit any other open instances of FlyBack (or wait for their backups to complete) before starting a new backup."
+        msg = get_external_storage_location_lock()
+        if msg:
             if gui:
                 error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
-                error.set_markup("<b>External Storage Location Locked</b>\n\n"+msg)
+                error.set_markup("<b>External Storage Location Error</b>\n\n"+msg)
                 error.connect('response', lambda x,y: error.destroy())
                 error.show()
             else:

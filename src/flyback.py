@@ -301,7 +301,12 @@ class prefs_gui:
     excluded_patterns_liststore = gtk.ListStore(gobject.TYPE_STRING)
             
     def save_prefs(self, o):
-        client.set_string ("/apps/flyback/external_storage_location", self.xml.get_widget('external_storage_location').get_current_folder() )
+        external_storage_location = self.xml.get_widget('external_storage_location').get_current_folder()
+        client.set_string ("/apps/flyback/external_storage_location", external_storage_location )
+        if not os.path.isdir(external_storage_location):
+            os.mkdir(external_storage_location)
+        if not os.path.isdir(external_storage_location + '/flyback'):
+            os.mkdir(external_storage_location + '/flyback')
         client.set_string ("/apps/flyback/included_dirs", pickle.dumps(self.included_dirs) )
         client.set_string ("/apps/flyback/excluded_patterns", pickle.dumps(self.excluded_patterns) )
         if self.xml.get_widget('pref_run_backup_automatically').get_active():
