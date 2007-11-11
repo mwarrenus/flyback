@@ -94,7 +94,8 @@ class main_gui:
     selected_backup = None
     backup = None
     cur_dir = '/'
-    available_backup_list = gtk.ListStore(gobject.TYPE_STRING)
+    available_backups = []
+    available_backup_list = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_PYOBJECT)
     file_list = gtk.ListStore(gobject.TYPE_STRING)
     backup_thread = None
     restore_thread = None
@@ -104,7 +105,7 @@ class main_gui:
         liststore, rows = selection.get_selected_rows()
 
         if self.selected_backup:
-            focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup + self.cur_dir
+            focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
         else:
             focus_dir = self.cur_dir
         print 'focus_dir', focus_dir
@@ -144,13 +145,8 @@ class main_gui:
     def select_backup(self, treeview):
         selection = treeview.get_selection()
         liststore, rows = selection.get_selected_rows()
-        self.selected_backup = liststore[rows[0]][0]
-        if self.selected_backup=='now':
-            self.selected_backup = None
-            self.xml.get_widget('restore_button').set_sensitive(False)
-        else:
-            self.xml.get_widget('restore_button').set_sensitive(True)
-            pass
+        self.selected_backup = liststore[rows[0]][1]
+        self.xml.get_widget('restore_button').set_sensitive( bool(self.selected_backup) )
         self.refresh_file_list()
         
     def run_backup(self, o):
@@ -167,16 +163,17 @@ class main_gui:
         self.refresh_file_list()
         
     def refresh_available_backup_list(self):
+        self.available_backups = self.backup.get_available_backups()
         self.available_backup_list.clear()
-        self.available_backup_list.append( ('now',) )
-        for n in self.backup.get_available_backups():
-            self.available_backup_list.append( (n,) )
+        self.available_backup_list.append( ('now',None) )
+        for n in self.available_backups:
+            self.available_backup_list.append( (n,n) )
             
     def refresh_file_list(self):
         self.xml.get_widget('pardir_button').set_sensitive( self.cur_dir != '/' )
         self.file_list.clear()
         if self.selected_backup:
-            focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup + self.cur_dir
+            focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
         else:
             focus_dir = self.cur_dir
         try:
