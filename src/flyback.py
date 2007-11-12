@@ -117,7 +117,7 @@ class main_gui:
     cur_dir = '/'
     available_backups = []
     available_backup_list = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_PYOBJECT)
-    file_list = gtk.ListStore( gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING )
+    file_list = gtk.ListStore( str, str, str, bool )
     backup_thread = None
     restore_thread = None
         
@@ -129,12 +129,12 @@ class main_gui:
             focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
         else:
             focus_dir = self.cur_dir
-        print 'focus_dir', focus_dir
+#        print 'focus_dir', focus_dir
         
         local_file = liststore[rows[0]][0].rstrip('/')
         
         new_file = focus_dir.rstrip('/') +'/'+ local_file
-        print 'new_file', new_file
+#        print 'new_file', new_file
         if os.path.isdir(new_file):
             self.cur_dir = self.cur_dir.rstrip('/') +'/'+ local_file
             self.xml.get_widget('location_field').set_text(self.cur_dir)
@@ -194,6 +194,7 @@ class main_gui:
         self.xml.get_widget('pardir_button').set_sensitive( self.cur_dir != '/' )
         self.file_list.clear()
         previous_focus_dir = None
+        previous_backup = None
         if self.selected_backup:
             focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
             i = self.available_backups.index(self.selected_backup)
@@ -201,31 +202,44 @@ class main_gui:
                 previous_backup = self.available_backups[i+1]
                 previous_focus_dir = self.backup.parent_backup_dir +'/'+ previous_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
         else:
-            focus_dir = self.cur_dir
             if self.available_backups:
                 previous_backup = self.available_backups[0]
                 previous_focus_dir = self.backup.parent_backup_dir +'/'+ previous_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
+            focus_dir = self.cur_dir
+#        print 'previous_backup, previous_focus_dir', previous_backup, previous_focus_dir
         if True:
 #        try:
             files = os.listdir(focus_dir)
             for file in files:
                 full_file_name = os.path.join( focus_dir, file )
                 file_stats = os.stat(full_file_name)
-                print 'file_stats', file_stats
+                color = False
+#                print 'full_file_name', full_file_name
+#                print 'file_stats', file_stats
                 if previous_focus_dir:
                     previous_full_file_name = os.path.join( previous_focus_dir, file )
                     if os.path.isfile(previous_full_file_name):
-                        print 'previous_focus_dir', previous_focus_dir
+#                        print 'previous_full_file_name', previous_full_file_name
                         previous_file_stats = os.stat(previous_full_file_name)
-                        print 'previous_file_stats', previous_file_stats
+#                        print 'previous_file_stats', previous_file_stats
+                        if self.selected_backup:
+                            if file_stats[1]!=previous_file_stats[1]:
+                                color = True
+                        else:
+                            if file_stats[8]!=previous_file_stats[8]:
+                                color = True
+                    else:
+                        if not os.path.isdir(previous_full_file_name):
+                            color = True
                 try:
                     if os.path.isdir(full_file_name):
                         size = humanize_count( len(os.listdir(full_file_name)), 'item', 'items' )
+#                        color = False
                     else:
                         size = humanize_bytes(file_stats[6])
                 except:
                     size = ''
-                self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]) ))
+                self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color ))
 #        except:
 #            traceback.print_stack()
         
@@ -313,12 +327,10 @@ class main_gui:
         file_list_widget.set_model(self.file_list)
         file_list_widget.set_headers_visible(True)
         file_list_widget.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
-        column = gtk.TreeViewColumn("name", gtk.CellRendererText(), text=0)
-        num = file_list_widget.append_column(column)
-        column = gtk.TreeViewColumn("size", gtk.CellRendererText(), text=1)
-        num = file_list_widget.append_column(column)
-        column = gtk.TreeViewColumn("last modified", gtk.CellRendererText(), text=2)
-        num = file_list_widget.append_column(column)
+        num = file_list_widget.append_column( gtk.TreeViewColumn("name", gtk.CellRendererText(), text=0 ) )
+        num = file_list_widget.append_column( gtk.TreeViewColumn("size", gtk.CellRendererText(), text=1) )
+        num = file_list_widget.append_column( gtk.TreeViewColumn("last modified", gtk.CellRendererText(), text=2) )
+        num = file_list_widget.append_column( gtk.TreeViewColumn("changed", gtk.CellRendererToggle(), active=3) )
         # and add its handlers
         file_list_widget.connect('row-activated', self.select_subdir)
 
