@@ -333,6 +333,17 @@ class prefs_gui:
         else:
             client.set_string ("/apps/flyback/crontab", '' )
             self.install_crontab(None)
+        
+        # delete backups
+        client.set_bool( '/apps/flyback/pref_delete_backups_free_space', self.xml.get_widget('pref_delete_backups_free_space').get_active() )
+        client.set_int( '/apps/flyback/pref_delete_backups_free_space_qty', int( self.xml.get_widget('pref_delete_backups_free_space_qty').get_value() ) )
+        widget_pref_delete_backups_free_space_unit = self.xml.get_widget('pref_delete_backups_free_space_unit')
+        client.set_string( '/apps/flyback/pref_delete_backups_free_space_unit', widget_pref_delete_backups_free_space_unit.get_model().get_value( widget_pref_delete_backups_free_space_unit.get_active_iter(), 0 ) )
+        client.set_bool( '/apps/flyback/pref_delete_backups_after', self.xml.get_widget('pref_delete_backups_after').get_active() )
+        client.set_int( '/apps/flyback/pref_delete_backups_after_qty', int( self.xml.get_widget('pref_delete_backups_after_qty').get_value() ) )
+        widget_pref_delete_backups_after_unit = self.xml.get_widget('pref_delete_backups_after_unit')
+        client.set_string( '/apps/flyback/pref_delete_backups_after_unit', widget_pref_delete_backups_after_unit.get_model().get_value( widget_pref_delete_backups_after_unit.get_active_iter(), 0 ) )
+            
         self.xml.get_widget('prefs_dialog').hide()
         self.main_gui.refresh_available_backup_list()
         
@@ -516,10 +527,12 @@ class prefs_gui:
         
         # init backup auto-delete
         s = client.get_bool('/apps/flyback/pref_delete_backups_free_space')
-        self.xml.get_widget('pref_delete_backups_free_space').set_active(s)
-        self.xml.get_widget('pref_delete_backups_free_space').connect('toggled', lambda x: self.xml.get_widget('pref_delete_backups_free_space_qty').set_sensitive(x.get_active())==self.xml.get_widget('pref_delete_backups_free_space_unit').set_sensitive(x.get_active())  )
-        self.xml.get_widget('pref_delete_backups_free_space_qty').set_sensitive(s)
-        self.xml.get_widget('pref_delete_backups_free_space_qty').set_value( client.get_int('/apps/flyback/pref_delete_backups_free_space_qty') )
+        widget_pref_delete_backups_free_space = self.xml.get_widget('pref_delete_backups_free_space')
+        widget_pref_delete_backups_free_space.set_active(s)
+        widget_pref_delete_backups_free_space.connect('toggled', lambda x: self.xml.get_widget('pref_delete_backups_free_space_qty').set_sensitive(x.get_active())==self.xml.get_widget('pref_delete_backups_free_space_unit').set_sensitive(x.get_active())  )
+        widget_pref_delete_backups_free_space_qty = self.xml.get_widget('pref_delete_backups_free_space_qty')
+        widget_pref_delete_backups_free_space_qty.set_sensitive(s)
+        widget_pref_delete_backups_free_space_qty.set_value( client.get_int('/apps/flyback/pref_delete_backups_free_space_qty') )
         widget_pref_delete_backups_free_space_unit = self.xml.get_widget('pref_delete_backups_free_space_unit')
         widget_pref_delete_backups_free_space_unit.set_sensitive(s)
         s = client.get_bool('/apps/flyback/pref_delete_backups_after')
