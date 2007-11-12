@@ -74,7 +74,7 @@ except:
 try:
     import gobject, gtk
     import gtk.glade
-    import gnome.ui   
+    import gnome.ui
     import gobject
 except:
     sys.exit(1)
@@ -223,6 +223,13 @@ class main_gui:
             self.xml.get_widget('scrolledwindow_backup_output').hide()
         client.set_bool("/apps/flyback/show_output", o.get_active())
         
+    def show_hide_opengl(self, o):
+        if o.get_active():
+            self.xml.get_widget("window_opengl").show_all()
+        else:
+            self.xml.get_widget("window_opengl").hide()
+        client.set_bool("/apps/flyback/show_opengl", o.get_active())
+    
     def __init__(self):
         
         gnome.init("programname", "version")
@@ -237,7 +244,11 @@ class main_gui:
         main_window.set_icon(icon)
         self.xml.get_widget('prefs_dialog').connect("delete-event", self.hide_window)
         self.xml.get_widget('help_window').connect("delete-event", self.hide_window)
+        self.xml.get_widget('window_opengl').connect("delete-event", self.hide_window)
     
+        # init opengl frontend
+#        main.show_all()
+
         # build the model for the available backups list
         self.refresh_available_backup_list()
         # and bind it to the treeview
@@ -279,6 +290,10 @@ class main_gui:
         menuitem_show_output.connect('activate', self.show_hide_output )
         menuitem_show_output.set_active(client.get_bool("/apps/flyback/show_output"))
         self.show_hide_output(menuitem_show_output)
+        menuitem_show_opengl = self.xml.get_widget('menuitem_show_opengl')
+        menuitem_show_opengl.connect('activate', self.show_hide_opengl )
+        menuitem_show_opengl.set_active(client.get_bool("/apps/flyback/show_opengl"))
+        self.show_hide_opengl(menuitem_show_opengl)
         
         # set current folder
         self.xml.get_widget('location_field').set_text(self.cur_dir)
@@ -554,7 +569,7 @@ class prefs_gui:
             dirs_excludet_widget.append_column(column)
         self.refresh_excluded_patterns_list()
 
-
+        
 def main():
     # parse command line options
     try:
