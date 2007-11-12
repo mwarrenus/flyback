@@ -316,6 +316,10 @@ class main_gui:
         available_backup_list_widget.set_headers_visible(True)
         renderer = gtk.CellRendererText()
         column = gtk.TreeViewColumn("system snapshots", renderer, text=0)
+        column.set_clickable(True)
+        column.set_sort_indicator(True)
+        column.set_reorderable(True)
+        column.set_sort_column_id(0)
         num = available_backup_list_widget.append_column(column)
         # and add its handlers
         available_backup_list_widget.connect('cursor-changed', self.select_backup)
@@ -331,6 +335,13 @@ class main_gui:
         num = file_list_widget.append_column( gtk.TreeViewColumn("size", gtk.CellRendererText(), text=1) )
         num = file_list_widget.append_column( gtk.TreeViewColumn("last modified", gtk.CellRendererText(), text=2) )
         num = file_list_widget.append_column( gtk.TreeViewColumn("changed", gtk.CellRendererToggle(), active=3) )
+        for num in range(4):
+            col = file_list_widget.get_column(num)
+            col.set_resizable(True)
+            col.set_clickable(True)
+            col.set_sort_indicator(True)
+            col.set_reorderable(True)
+            col.set_sort_column_id(num)
         # and add its handlers
         file_list_widget.connect('row-activated', self.select_subdir)
 
