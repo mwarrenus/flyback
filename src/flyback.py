@@ -20,7 +20,7 @@
 import os, sys, traceback
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-VERSION = 'v0.3.1'
+VERSION = 'v0.3.3'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 
 DEFAULT_EXCLUDES = [
@@ -299,6 +299,8 @@ class prefs_gui:
     included_dirs_liststore = gtk.ListStore(gobject.TYPE_STRING)
     excluded_patterns = []
     excluded_patterns_liststore = gtk.ListStore(gobject.TYPE_STRING)
+    pref_delete_backups_free_space_units = ['MB','GB']
+    pref_delete_backups_after_units = ['days','months','years']
             
     def save_prefs(self, o):
         external_storage_location = self.xml.get_widget('external_storage_location').get_current_folder()
@@ -461,17 +463,65 @@ class prefs_gui:
         else:
             return '*'
 
+    def set_model_from_list (self, cb, items):
+        """Setup a ComboBox or ComboBoxEntry based on a list of strings."""           
+        model = gtk.ListStore(str)
+        for i in items:
+            model.append([i])
+        cb.set_model(model)
+#        if type(cb) == gtk.ComboBoxEntry:
+#            cb.set_text_column(0)
+#        elif type(cb) == gtk.ComboBox:
+#            cell = gtk.CellRendererText()
+#            cb.pack_start(cell, True)
+#            cb.add_attribute(cell, 'text', 0)
+
     def __init__(self, o):
         self.xml = o.xml
         self.main_gui = o
         
+        # init external_storage_location
+        external_storage_location = client.get_string("/apps/flyback/external_storage_location")
+        if not external_storage_location:
+            external_storage_location = '/external_storage_location'
+        self.xml.get_widget('external_storage_location').set_current_folder( external_storage_location )
+
+        self.xml.get_widget('prefs_dialog').show()
+
+        # init includes / excludes
         s = client.get_string("/apps/flyback/included_dirs")
         if s: self.included_dirs = pickle.loads(s)
         else: self.included_dirs = []
         s = client.get_string("/apps/flyback/excluded_patterns")
         if s: self.excluded_patterns = pickle.loads(s)
         else: self.excluded_patterns = DEFAULT_EXCLUDES
+        
+        # init backup crontab
         self.load_crontab( client.get_string("/apps/flyback/crontab") )
+        
+        # init backup auto-delete
+        s = client.get_bool('/apps/flyback/pref_delete_backups_free_space')
+        self.xml.get_widget('pref_delete_backups_free_space').set_active(s)
+        self.xml.get_widget('pref_delete_backups_free_space').connect('toggled', lambda x: self.xml.get_widget('pref_delete_backups_free_space_qty').set_sensitive(x.get_active())==self.xml.get_widget('pref_delete_backups_free_space_unit').set_sensitive(x.get_active())  )
+        self.xml.get_widget('pref_delete_backups_free_space_qty').set_sensitive(s)
+        self.xml.get_widget('pref_delete_backups_free_space_qty').set_value( client.get_int('/apps/flyback/pref_delete_backups_free_space_qty') )
+        widget_pref_delete_backups_free_space_unit = self.xml.get_widget('pref_delete_backups_free_space_unit')
+        widget_pref_delete_backups_free_space_unit.set_sensitive(s)
+        s = client.get_bool('/apps/flyback/pref_delete_backups_after')
+        self.xml.get_widget('pref_delete_backups_after').set_active(s)
+        self.xml.get_widget('pref_delete_backups_after').connect('toggled', lambda x: self.xml.get_widget('pref_delete_backups_after_qty').set_sensitive(x.get_active())==self.xml.get_widget('pref_delete_backups_after_unit').set_sensitive(x.get_active())  )
+        self.xml.get_widget('pref_delete_backups_after_qty').set_sensitive(s)
+        self.xml.get_widget('pref_delete_backups_after_qty').set_value( client.get_int('/apps/flyback/pref_delete_backups_after_qty') )
+        widget_pref_delete_backups_after_unit = self.xml.get_widget('pref_delete_backups_after_unit')
+        widget_pref_delete_backups_after_unit.set_sensitive(s)
+        s = client.get_string('/apps/flyback/pref_delete_backups_free_space_unit')
+        if not s: s = 'GB'
+        self.set_model_from_list( widget_pref_delete_backups_free_space_unit, self.pref_delete_backups_free_space_units )
+        widget_pref_delete_backups_free_space_unit.set_active_iter( widget_pref_delete_backups_free_space_unit.get_model().iter_nth_child( None, self.pref_delete_backups_free_space_units.index( s ) ) )
+        s = client.get_string('/apps/flyback/pref_delete_backups_after_unit')
+        if not s: s = 'years'
+        self.set_model_from_list( widget_pref_delete_backups_after_unit, self.pref_delete_backups_after_units )
+        widget_pref_delete_backups_after_unit.set_active_iter( widget_pref_delete_backups_after_unit.get_model().iter_nth_child( None, self.pref_delete_backups_after_units.index( s ) ) )
         
         # bind ok/cancel buttons
         self.xml.get_widget('prefs_dialog_ok').connect('clicked', self.save_prefs)
@@ -503,14 +553,6 @@ class prefs_gui:
         if not dirs_excludet_widget.get_columns():
             dirs_excludet_widget.append_column(column)
         self.refresh_excluded_patterns_list()
-
-        # init external_storage_location
-        external_storage_location = client.get_string("/apps/flyback/external_storage_location")
-        if not external_storage_location:
-            external_storage_location = '/external_storage_location'
-        self.xml.get_widget('external_storage_location').set_current_folder( external_storage_location )
-
-        self.xml.get_widget('prefs_dialog').show()
 
 
 def main():
