@@ -17,7 +17,7 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import os, sys, traceback
+import os, sys, traceback, math
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
 VERSION = 'v0.3.3'
@@ -88,6 +88,27 @@ from backup_backend import *
 gobject.threads_init()
 gtk.gdk.threads_init()
 
+def humanize_bytes(x):
+    x = float(x)
+    if x > math.pow(2,30):
+        return humanize_count(x/math.pow(2,30),'GB','GB')
+    if x > math.pow(2,20):
+        return humanize_count(x/math.pow(2,20),'MB','MB')
+    if x > math.pow(2,10):
+        return humanize_count(x/math.pow(2,10),'KB','KB')
+    return humanize_count( x, 'byte', 'bytes' )
+
+def humanize_count(x, s, p, places=1):
+    x = float(x)*math.pow(10, places)
+    x = round(x)
+    x = x/math.pow(10, places)
+    if x-int(x)==0:
+        x = int(x)
+    if x==1:
+        return str(x) +' ' + s
+    else:
+        return str(x) +' ' + p
+
 class main_gui:
     
     xml = None
@@ -96,7 +117,7 @@ class main_gui:
     cur_dir = '/'
     available_backups = []
     available_backup_list = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_PYOBJECT)
-    file_list = gtk.ListStore(gobject.TYPE_STRING)
+    file_list = gtk.ListStore( gobject.TYPE_STRING, gobject.TYPE_STRING, gobject.TYPE_STRING )
     backup_thread = None
     restore_thread = None
         
@@ -172,17 +193,41 @@ class main_gui:
     def refresh_file_list(self):
         self.xml.get_widget('pardir_button').set_sensitive( self.cur_dir != '/' )
         self.file_list.clear()
+        previous_focus_dir = None
         if self.selected_backup:
             focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
+            i = self.available_backups.index(self.selected_backup)
+            if i<len(self.available_backups)-1:
+                previous_backup = self.available_backups[i+1]
+                previous_focus_dir = self.backup.parent_backup_dir +'/'+ previous_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
         else:
             focus_dir = self.cur_dir
-        try:
-            dirs = dircache.listdir(focus_dir)
-            #dircache.annotate('/', dirs)
-            for dir in dirs:
-                self.file_list.append((dir,))
-        except:
-            pass
+            if self.available_backups:
+                previous_backup = self.available_backups[0]
+                previous_focus_dir = self.backup.parent_backup_dir +'/'+ previous_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
+        if True:
+#        try:
+            files = os.listdir(focus_dir)
+            for file in files:
+                full_file_name = os.path.join( focus_dir, file )
+                file_stats = os.stat(full_file_name)
+                print 'file_stats', file_stats
+                if previous_focus_dir:
+                    previous_full_file_name = os.path.join( previous_focus_dir, file )
+                    if os.path.isfile(previous_full_file_name):
+                        print 'previous_focus_dir', previous_focus_dir
+                        previous_file_stats = os.stat(previous_full_file_name)
+                        print 'previous_file_stats', previous_file_stats
+                try:
+                    if os.path.isdir(full_file_name):
+                        size = humanize_count( len(os.listdir(full_file_name)), 'item', 'items' )
+                    else:
+                        size = humanize_bytes(file_stats[6])
+                except:
+                    size = ''
+                self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]) ))
+#        except:
+#            traceback.print_stack()
         
     def show_about_dialog(self, o):
         about = gtk.AboutDialog()
@@ -268,8 +313,11 @@ class main_gui:
         file_list_widget.set_model(self.file_list)
         file_list_widget.set_headers_visible(True)
         file_list_widget.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
-        renderer = gtk.CellRendererText()
-        column = gtk.TreeViewColumn("file", renderer, text=0)
+        column = gtk.TreeViewColumn("name", gtk.CellRendererText(), text=0)
+        num = file_list_widget.append_column(column)
+        column = gtk.TreeViewColumn("size", gtk.CellRendererText(), text=1)
+        num = file_list_widget.append_column(column)
+        column = gtk.TreeViewColumn("last modified", gtk.CellRendererText(), text=2)
         num = file_list_widget.append_column(column)
         # and add its handlers
         file_list_widget.connect('row-activated', self.select_subdir)
