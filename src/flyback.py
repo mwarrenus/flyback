@@ -594,7 +594,7 @@ def main():
     # process options
     for o, a in opts:
         if o in ("-b", "--backup"):
-            backup().backup(gui=False)
+            backup().backup()
             sys.exit(0)
 
     main_gui()

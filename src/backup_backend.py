@@ -121,27 +121,27 @@ class backup:
             eds.append( '--exclude="%s"' % x )
         return "nice -n19 rsync -av --one-file-system --delete "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
-    def run_cmd_output_gui(self, gui, cmd):
-        if gui:
+    def run_cmd_output_gui(self, cmd):
+        if self.main_gui:
             text_view = self.xml.get_widget('backup_output_text')
             text_buffer = text_view.get_buffer()
         output = []
 
-        if gui:
+        if self.main_gui:
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
             gtk.gdk.threads_leave()
         stdin, stdout = os.popen4(cmd)
         for line in stdout:
             output.append(line)
-            if gui:
+            if self.main_gui:
                 gtk.gdk.threads_enter()
                 text_buffer.insert( text_buffer.get_end_iter(), line )
                 text_view.scroll_to_mark(text_buffer.get_insert(), 0.499)
                 gtk.gdk.threads_leave()
             else:
                 print line
-        if gui:
+        if self.main_gui:
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), '\n' )
             gtk.gdk.threads_leave()
@@ -149,13 +149,13 @@ class backup:
         stdout.close()
         return output
             
-    def backup(self, gui=True):
-        if gui:
+    def backup(self):
+        if self.main_gui:
             backup_button = self.xml.get_widget('backup_button')
 
         msg = get_external_storage_location_lock()
         if msg:
-            if gui:
+            if self.main_gui:
                 error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
                 error.set_markup("<b>External Storage Location Error</b>\n\n"+msg)
                 error.connect('response', lambda x,y: error.destroy())
@@ -174,7 +174,7 @@ class backup:
         
         if not self.included_dirs:
             resp = 'No directories set to backup.  Please add something to the "included dirs" list in the preferences window.'
-            if gui:
+            if self.main_gui:
                 error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
                 error.connect('response', lambda x,y: error.destroy())
                 error.set_markup(resp)
@@ -184,7 +184,7 @@ class backup:
 
         new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime(BACKUP_DIR_DATE_FORMAT)
 
-        if gui:
+        if self.main_gui:
             gtk.gdk.threads_enter()
             backup_button.set_label('Backup is running...')
             backup_button.set_sensitive(False)
@@ -195,18 +195,18 @@ class backup:
 
         if latest_backup_dir:
             last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
-            self.run_cmd_output_gui(gui, "cp -al '%s' '%s'" % (last_backup, new_backup))
-            self.run_cmd_output_gui(gui, "chmod u+w '%s'" % new_backup)
+            self.run_cmd_output_gui("cp -al '%s' '%s'" % (last_backup, new_backup))
+            self.run_cmd_output_gui("chmod u+w '%s'" % new_backup)
         
         for dir in self.included_dirs:
-            self.run_cmd_output_gui(gui, "mkdir -p '%s'" % new_backup + dir)
+            self.run_cmd_output_gui("mkdir -p '%s'" % (new_backup + dir))
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
-            self.run_cmd_output_gui(gui, cmd)
-        self.run_cmd_output_gui(gui, "chmod -w '%s'" % new_backup)
+            self.run_cmd_output_gui(cmd)
+        self.run_cmd_output_gui("chmod -w '%s'" % new_backup)
         
         release_external_storage_location_lock()
         
-        if gui:
+        if self.main_gui:
             gtk.gdk.threads_enter()
             self.main_gui.refresh_available_backup_list()
             backup_button.set_label('Backup')
@@ -216,7 +216,7 @@ class backup:
     def restore(self):
         restore_button = self.xml.get_widget('restore_button')
 
-        src = self.parent_backup_dir +'/'+ self.main_gui.selected_backup + self.main_gui.cur_dir
+        src = self.parent_backup_dir +'/'+ self.main_gui.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.main_gui.cur_dir
 #        print 'src', src
         dest = self.main_gui.cur_dir
 #        print 'dest', dest
@@ -240,7 +240,7 @@ class backup:
         
         if not os.path.isdir(dest):
             cmd = "mkdir -p '%s'" % dest
-            self.run_cmd_output_gui(True,cmd)
+            self.run_cmd_output_gui(cmd)
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), cmd +'\n' )
             text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
@@ -256,7 +256,7 @@ class backup:
                 cmd = 'cp -vR "%s" "%s"' % (file, dest)
             else:
                 cmd = 'cp -v "%s" "%s"' % (file, dest)
-            file_pairs = self.run_cmd_output_gui(True,cmd)
+            file_pairs = self.run_cmd_output_gui(cmd)
 #            for file_pair in file_pairs:
 #                to_f = file_pair.split(' -> ')[1].strip("'`\n")
 #                if os.path.isdir(to_f):
