@@ -22,11 +22,11 @@ import os, sys, traceback
 import dircache
 import desktop
 import gconf
-import pickle
 from datetime import datetime
 from time import strptime
 import threading
 import help_data
+import config_backend
 import getopt
 
 try:
@@ -46,7 +46,7 @@ except:
     
 BACKUP_DIR_DATE_FORMAT = "%Y%m%d_%H%M%S.backup"
 
-client = gconf.client_get_default()
+client = config_backend.GConfConfig()
 
 def get_external_storage_location_lock():
     external_storage_location = client.get_string("/apps/flyback/external_storage_location")
@@ -165,12 +165,8 @@ class backup:
             return
 
         latest_backup_dir = self.get_latest_backup_dir()
-        s = client.get_string("/apps/flyback/included_dirs")
-        if s: self.included_dirs = pickle.loads(s)
-        else: self.included_dirs = []
-        s = client.get_string("/apps/flyback/excluded_patterns")
-        if s: self.excluded_patterns = pickle.loads(s)
-        else: self.excluded_patterns = []
+        self.included_dirs = client.get_list("/apps/flyback/included_dirs")
+        self.excluded_patterns = client.get_list("/apps/flyback/excluded_patterns")
         
         if not self.included_dirs:
             resp = 'No directories set to backup.  Please add something to the "included dirs" list in the preferences window.'

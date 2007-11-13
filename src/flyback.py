@@ -59,11 +59,11 @@ DEFAULT_EXCLUDES = [
 import dircache
 import desktop
 import gconf
-import pickle
 from datetime import datetime
 from time import strptime
 import threading
 import help_data
+import config_backend
 import getopt
 
 try:
@@ -80,8 +80,7 @@ except:
     sys.exit(1)
 
 
-client = gconf.client_get_default()
-client.add_dir ("/apps/flyback", gconf.CLIENT_PRELOAD_NONE)
+client = config_backend.GConfConfig()
 
 from backup_backend import *
 
@@ -395,8 +394,8 @@ class prefs_gui:
             os.mkdir(external_storage_location)
         if not os.path.isdir(external_storage_location + '/flyback'):
             os.mkdir(external_storage_location + '/flyback')
-        client.set_string ("/apps/flyback/included_dirs", pickle.dumps(self.included_dirs) )
-        client.set_string ("/apps/flyback/excluded_patterns", pickle.dumps(self.excluded_patterns) )
+        client.set_list("/apps/flyback/included_dirs", self.included_dirs )
+        client.set_list("/apps/flyback/excluded_patterns", self.excluded_patterns )
         if self.xml.get_widget('pref_run_backup_automatically').get_active():
             crontab = self.save_crontab()
             client.set_string ("/apps/flyback/crontab", crontab )
@@ -586,12 +585,8 @@ class prefs_gui:
         self.xml.get_widget('prefs_dialog').show()
 
         # init includes / excludes
-        s = client.get_string("/apps/flyback/included_dirs")
-        if s: self.included_dirs = pickle.loads(s)
-        else: self.included_dirs = []
-        s = client.get_string("/apps/flyback/excluded_patterns")
-        if s: self.excluded_patterns = pickle.loads(s)
-        else: self.excluded_patterns = DEFAULT_EXCLUDES
+        self.included_dirs = client.get_list("/apps/flyback/included_dirs")
+        self.excluded_patterns = client.get_list("/apps/flyback/excluded_patterns", DEFAULT_EXCLUDES)
         
         # init backup crontab
         self.load_crontab( client.get_string("/apps/flyback/crontab") )
@@ -613,12 +608,10 @@ class prefs_gui:
         self.xml.get_widget('pref_delete_backups_after_qty').set_value( client.get_int('/apps/flyback/pref_delete_backups_after_qty') )
         widget_pref_delete_backups_after_unit = self.xml.get_widget('pref_delete_backups_after_unit')
         widget_pref_delete_backups_after_unit.set_sensitive(s)
-        s = client.get_string('/apps/flyback/pref_delete_backups_free_space_unit')
-        if not s: s = 'GB'
+        s = client.get_string('/apps/flyback/pref_delete_backups_free_space_unit', 'GB')
         self.set_model_from_list( widget_pref_delete_backups_free_space_unit, self.pref_delete_backups_free_space_units )
         widget_pref_delete_backups_free_space_unit.set_active_iter( widget_pref_delete_backups_free_space_unit.get_model().iter_nth_child( None, self.pref_delete_backups_free_space_units.index( s ) ) )
-        s = client.get_string('/apps/flyback/pref_delete_backups_after_unit')
-        if not s: s = 'years'
+        s = client.get_string('/apps/flyback/pref_delete_backups_after_unit', 'years')
         self.set_model_from_list( widget_pref_delete_backups_after_unit, self.pref_delete_backups_after_units )
         widget_pref_delete_backups_after_unit.set_active_iter( widget_pref_delete_backups_after_unit.get_model().iter_nth_child( None, self.pref_delete_backups_after_units.index( s ) ) )
         
