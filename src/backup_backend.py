@@ -22,7 +22,7 @@ import os, sys, traceback
 import dircache
 import desktop
 import gconf
-from datetime import datetime
+from datetime import datetime, timedelta
 from time import strptime
 import threading
 import help_data
@@ -67,6 +67,44 @@ def release_external_storage_location_lock():
     lockfile = external_storage_location +'/flyback/lockfile.txt'
 
     os.remove(lockfile)
+    
+def get_x_years_ago(d, x):
+    year, month, day = d.year, d.month, d.day
+    year -= x
+    try:
+        return d.replace(year=year, month=month)
+    except ValueError:
+        print 'poop'
+        try:
+            return d.replace(year=year, month=month, day=day-1 )
+        except ValueError:
+            print 'poop2'
+
+def get_x_months_ago(d, x):
+    year, month, day = d.year, d.month, d.day
+    month -= x
+    while month <= 0:
+        year -= 1; month += 12
+    try:
+        return d.replace(year=year, month=month)
+    except ValueError:
+        print 'poop'
+        try:
+            return d.replace(year=year, month=month, day=day-1 )
+        except ValueError:
+            print 'poop2'
+            try:
+                return d.replace(year=year, month=month, day=day-2 )
+            except ValueError:
+                print 'poop3'
+                try:
+                    return d.replace(year=year, month=month, day=day-3 )
+                except ValueError:
+                    print 'poop4'
+
+def get_x_days_ago(d, x):
+    return d - timedelta(x)
+
 
 class backup:
     
@@ -196,6 +234,8 @@ class backup:
             self.run_cmd_output_gui(cmd)
         self.run_cmd_output_gui("chmod -w '%s'" % new_backup)
         
+        self.check_for_too_old_backups()
+        
         release_external_storage_location_lock()
         
         if self.main_gui:
@@ -261,3 +301,29 @@ class backup:
         restore_button.set_label('Restore')
         restore_button.set_sensitive(True)
         gtk.gdk.threads_leave()
+        
+        
+    def check_for_too_old_backups(self):
+        if not client.get_bool('/apps/flyback/pref_delete_backups_after'):
+            return
+        
+        pref_delete_backups_after_qty = client.get_int( '/apps/flyback/pref_delete_backups_after_qty')
+        pref_delete_backups_after_unit = client.get_string( '/apps/flyback/pref_delete_backups_after_unit')
+        
+        delete_before_date = None
+        if pref_delete_backups_after_unit=='years':
+            delete_before_date = get_x_years_ago( datetime.now(), pref_delete_backups_after_qty )
+        if pref_delete_backups_after_unit=='months':
+            delete_before_date = get_x_months_ago( datetime.now(), pref_delete_backups_after_qty )
+        if pref_delete_backups_after_unit=='days':
+            delete_before_date = get_x_days_ago( datetime.now(), pref_delete_backups_after_qty )
+
+        print 'delete_before_date', delete_before_date
+        if delete_before_date:
+            for x in self.get_available_backups():
+                if x < delete_before_date:
+                    backup_dir = self.parent_backup_dir +'/'+ x.strftime(BACKUP_DIR_DATE_FORMAT)
+                    print 'backup_dir', backup_dir
+                    self.run_cmd_output_gui("chmod u+w '%s'" % backup_dir)
+                    self.run_cmd_output_gui("rm -Rf '%s'" % backup_dir)
+                    
