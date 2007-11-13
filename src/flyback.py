@@ -190,6 +190,7 @@ class main_gui:
         previous_focus_dir = None
         previous_backup = None
         show_hidden_files = client.get_bool("/apps/flyback/show_hidden_files")
+        sort_dirs_first = client.get_bool("/apps/flyback/sort_dirs_first")
         if self.selected_backup:
             focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
             i = self.available_backups.index(self.selected_backup)
@@ -205,6 +206,17 @@ class main_gui:
         if True:
 #        try:
             files = os.listdir(focus_dir)
+            files.sort()
+            if sort_dirs_first:
+                dirs = []
+                not_dirs = []
+                for file in files:
+                    if os.path.isdir( os.path.join( focus_dir, file ) ):
+                        dirs.append(file)
+                    else:
+                        not_dirs.append(file)
+                files = dirs
+                files.extend(not_dirs)
             for file in files:
                 full_file_name = os.path.join( focus_dir, file )
                 file_stats = os.stat(full_file_name)
@@ -364,6 +376,9 @@ class main_gui:
         menuitem_show_hidden_files = self.xml.get_widget('menuitem_show_hidden_files')
         menuitem_show_hidden_files.set_active(client.get_bool("/apps/flyback/show_hidden_files"))
         menuitem_show_hidden_files.connect('activate', lambda x: client.set_bool('/apps/flyback/show_hidden_files',x.get_active())==self.refresh_file_list() )
+        menuitem_sort_dirs_first = self.xml.get_widget('menuitem_sort_dirs_first')
+        menuitem_sort_dirs_first.set_active(client.get_bool("/apps/flyback/sort_dirs_first"))
+        menuitem_sort_dirs_first.connect('activate', lambda x: client.set_bool('/apps/flyback/sort_dirs_first',x.get_active())==self.refresh_file_list() )
         
         # set current folder
         self.xml.get_widget('location_field').set_text(self.cur_dir)
