@@ -17,7 +17,7 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import os, sys, traceback
+import os, sys, traceback, math
 
 import dircache
 import desktop
@@ -104,6 +104,10 @@ def get_x_months_ago(d, x):
 
 def get_x_days_ago(d, x):
     return d - timedelta(x)
+
+def get_free_space(parent_backup_dir):
+    stdin, stdout = os.popen4( 'df %s' % parent_backup_dir )
+    return int(stdout.readlines()[1].split()[3]) # in KB
 
 
 class backup:
@@ -234,7 +238,8 @@ class backup:
             self.run_cmd_output_gui(cmd)
         self.run_cmd_output_gui("chmod -w '%s'" % new_backup)
         
-        self.check_for_too_old_backups()
+        self.delete_too_old_backups()
+        self.delete_old_backups_to_free_space()
         
         release_external_storage_location_lock()
         
@@ -303,7 +308,7 @@ class backup:
         gtk.gdk.threads_leave()
         
         
-    def check_for_too_old_backups(self):
+    def delete_too_old_backups(self):
         if not client.get_bool('/apps/flyback/pref_delete_backups_after'):
             return
         
@@ -318,12 +323,38 @@ class backup:
         if pref_delete_backups_after_unit=='days':
             delete_before_date = get_x_days_ago( datetime.now(), pref_delete_backups_after_qty )
 
-        print 'delete_before_date', delete_before_date
         if delete_before_date:
             for x in self.get_available_backups():
                 if x < delete_before_date:
                     backup_dir = self.parent_backup_dir +'/'+ x.strftime(BACKUP_DIR_DATE_FORMAT)
-                    print 'backup_dir', backup_dir
                     self.run_cmd_output_gui("chmod u+w '%s'" % backup_dir)
                     self.run_cmd_output_gui("rm -Rf '%s'" % backup_dir)
                     
+
+    def delete_old_backups_to_free_space(self):
+        if not client.get_bool('/apps/flyback/pref_delete_backups_free_space'):
+            return
+
+        pref_delete_backups_free_space_qty = client.get_int( '/apps/flyback/pref_delete_backups_free_space_qty')
+        pref_delete_backups_free_space_unit = client.get_string( '/apps/flyback/pref_delete_backups_free_space_unit')
+        
+        min_free_space = pref_delete_backups_free_space_qty
+        if pref_delete_backups_free_space_unit=='MB':
+            min_free_space *= math.pow(2,10)
+        if pref_delete_backups_free_space_unit=='GB':
+            min_free_space *= math.pow(2,20)
+        
+        
+        available_backups = self.get_available_backups()
+        available_backups.reverse()
+        
+        for x in available_backups:
+            free_space = get_free_space(self.parent_backup_dir)
+            if free_space < min_free_space:
+                print 'x, free_space, min_free_space', x, free_space, min_free_space
+                backup_dir = self.parent_backup_dir +'/'+ x.strftime(BACKUP_DIR_DATE_FORMAT)
+                self.run_cmd_output_gui("chmod u+w '%s'" % backup_dir)
+                self.run_cmd_output_gui("rm -Rf '%s'" % backup_dir)
+            else:
+                break
+                
