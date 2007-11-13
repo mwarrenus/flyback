@@ -20,7 +20,7 @@
 import os, sys, traceback, math
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-VERSION = 'v0.3.3'
+VERSION = 'v0.4.0'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 
 DEFAULT_EXCLUDES = [
