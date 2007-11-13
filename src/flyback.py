@@ -189,6 +189,7 @@ class main_gui:
         self.file_list.clear()
         previous_focus_dir = None
         previous_backup = None
+        show_hidden_files = client.get_bool("/apps/flyback/show_hidden_files")
         if self.selected_backup:
             focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
             i = self.available_backups.index(self.selected_backup)
@@ -233,7 +234,8 @@ class main_gui:
                         size = humanize_bytes(file_stats[6])
                 except:
                     size = ''
-                self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color ))
+                if show_hidden_files or not file.startswith('.'):
+                    self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color ))
 #        except:
 #            traceback.print_stack()
         
@@ -325,10 +327,10 @@ class main_gui:
         file_list_widget.set_model(self.file_list)
         file_list_widget.set_headers_visible(True)
         file_list_widget.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
+        num = file_list_widget.append_column( gtk.TreeViewColumn("", gtk.CellRendererToggle(), active=3) )
         num = file_list_widget.append_column( gtk.TreeViewColumn("name", gtk.CellRendererText(), text=0 ) )
         num = file_list_widget.append_column( gtk.TreeViewColumn("size", gtk.CellRendererText(), text=1) )
         num = file_list_widget.append_column( gtk.TreeViewColumn("last modified", gtk.CellRendererText(), text=2) )
-        num = file_list_widget.append_column( gtk.TreeViewColumn("changed", gtk.CellRendererToggle(), active=3) )
         for num in range(4):
             col = file_list_widget.get_column(num)
             col.set_resizable(True)
@@ -356,9 +358,12 @@ class main_gui:
         menuitem_show_output.set_active(client.get_bool("/apps/flyback/show_output"))
         self.show_hide_output(menuitem_show_output)
         menuitem_show_opengl = self.xml.get_widget('menuitem_show_opengl')
-        menuitem_show_opengl.connect('activate', self.show_hide_opengl )
         menuitem_show_opengl.set_active(client.get_bool("/apps/flyback/show_opengl"))
+        menuitem_show_opengl.connect('activate', self.show_hide_opengl )
         self.show_hide_opengl(menuitem_show_opengl)
+        menuitem_show_hidden_files = self.xml.get_widget('menuitem_show_hidden_files')
+        menuitem_show_hidden_files.set_active(client.get_bool("/apps/flyback/show_hidden_files"))
+        menuitem_show_hidden_files.connect('activate', lambda x: client.set_bool('/apps/flyback/show_hidden_files',x.get_active())==self.refresh_file_list() )
         
         # set current folder
         self.xml.get_widget('location_field').set_text(self.cur_dir)
