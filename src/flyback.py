@@ -66,19 +66,14 @@ import help_data
 import config_backend
 import getopt
 
-try:
-     import pygtk
-     pygtk.require("2.0")
-except:
-      pass
-try:
-    import gobject, gtk
-    import gtk.glade
-    import gnome.ui
-    import gobject
-except:
-    sys.exit(1)
-
+#try
+import pygtk
+pygtk.require("2.0")
+import gobject, gtk
+import gtk.glade
+import gnome.ui
+import gobject
+#except:
 
 client = config_backend.GConfConfig()
 
