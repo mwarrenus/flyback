@@ -58,7 +58,6 @@ DEFAULT_EXCLUDES = [
 
 import dircache
 import desktop
-import gconf
 from datetime import datetime
 from time import strptime
 import threading
@@ -66,14 +65,38 @@ import help_data
 import config_backend
 import getopt
 
-#try
-import pygtk
-pygtk.require("2.0")
-import gobject, gtk
-import gtk.glade
-import gnome.ui
-import gobject
-#except:
+try:
+    import gconf
+except:
+    print 'error: could not find python module gconf'
+    sys.exit()
+try:
+    import pygtk
+except:
+    print 'error: could not find python module pygtk'
+    sys.exit()
+try:
+    pygtk.require("2.0")
+except:
+    print 'error: pygtk v2.0 or later is required'
+    sys.exit()
+try:
+    import gobject
+except:
+    print 'error: could not find python module gobject'
+    sys.exit()
+try:
+    import gtk
+    import gtk.glade
+except:
+    print 'error: could not find python module gtk'
+    sys.exit()
+try:
+    import gnome.ui
+except:
+    print 'error: could not find python module gnome'
+    sys.exit()
+    
 
 client = config_backend.GConfConfig()
 
