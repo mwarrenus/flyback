@@ -134,7 +134,7 @@ class main_gui:
     cur_dir = '/'
     available_backups = []
     available_backup_list = gtk.ListStore(gobject.TYPE_STRING, gobject.TYPE_PYOBJECT)
-    file_list = gtk.ListStore( str, str, str, bool )
+    file_list = gtk.ListStore( str, str, str, bool, gtk.gdk.Pixbuf )
     backup_thread = None
     restore_thread = None
         
@@ -208,7 +208,8 @@ class main_gui:
             self.available_backup_list.append( (n,n) )
             
     def refresh_file_list(self):
-        self.xml.get_widget('pardir_button').set_sensitive( self.cur_dir != '/' )
+        pardir_button = self.xml.get_widget('pardir_button')
+        pardir_button.set_sensitive( self.cur_dir != '/' )
         self.file_list.clear()
         previous_focus_dir = None
         previous_backup = None
@@ -264,13 +265,16 @@ class main_gui:
                 try:
                     if os.path.isdir(full_file_name):
                         size = humanize_count( len(os.listdir(full_file_name)), 'item', 'items' )
+                        icon = pardir_button.render_icon(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU)
 #                        color = False
                     else:
                         size = humanize_bytes(file_stats[6])
+                        icon = pardir_button.render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
                 except:
                     size = ''
+                    icon = pardir_button.render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
                 if show_hidden_files or not file.startswith('.'):
-                    self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color ))
+                    self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color, icon ))
 #        except:
 #            traceback.print_stack()
         
@@ -363,7 +367,17 @@ class main_gui:
         file_list_widget.set_headers_visible(True)
         file_list_widget.get_selection().set_mode(gtk.SELECTION_MULTIPLE)
         num = file_list_widget.append_column( gtk.TreeViewColumn("", gtk.CellRendererToggle(), active=3) )
-        num = file_list_widget.append_column( gtk.TreeViewColumn("name", gtk.CellRendererText(), text=0 ) )
+        
+        column = gtk.TreeViewColumn()
+        column.set_title('file name')
+        file_list_widget.append_column(column)
+        renderer = gtk.CellRendererPixbuf()
+        column.pack_start(renderer, expand=False)
+        column.add_attribute(renderer, 'pixbuf', 4)
+        renderer = gtk.CellRendererText()
+        column.pack_start(renderer, expand=True)
+        column.add_attribute(renderer, 'text', 0)        
+        
         num = file_list_widget.append_column( gtk.TreeViewColumn("size", gtk.CellRendererText(), text=1) )
         num = file_list_widget.append_column( gtk.TreeViewColumn("last modified", gtk.CellRendererText(), text=2) )
         for num in range(4):
