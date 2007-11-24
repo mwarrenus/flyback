@@ -47,6 +47,7 @@ DEFAULT_EXCLUDES = [
     '/**/.openoffice.org2/user/uno_packages/cache/',
     '/**/.grails/*/scriptCache/',
     '/**/.wine/drive_c/windows/temp/',
+    '/cdrom',
     '/dev/',
     '/proc/',
     '/sys/',
@@ -324,6 +325,33 @@ class main_gui:
             self.xml.get_widget("window_opengl").hide()
         client.set_bool("/apps/flyback/show_opengl", o.get_active())
     
+    def file_list_button_press_event(self, treeview, event):
+        if event.button == 3:
+            x = int(event.x)
+            y = int(event.y)
+            time = event.time
+            pthinfo = treeview.get_path_at_pos(x, y)
+            if pthinfo is not None:
+                path, col, cellx, celly = pthinfo
+                treeview.grab_focus()
+                treeview.set_cursor( path, col, 0)
+                menu = gtk.Menu()
+                open = gtk.ImageMenuItem(stock_id=gtk.STOCK_OPEN)
+#                open.set_image( gtk.image_new_from_stock(gtk.STOCK_OPEN, gtk.ICON_SIZE_MENU) )
+                menu.append(open)
+                folder = gtk.ImageMenuItem(stock_id='Open Containing _Folder')
+                folder.set_image( gtk.image_new_from_stock(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU) )
+                menu.append(folder)
+                restore = gtk.ImageMenuItem(stock_id="_Restore this Version")
+                restore.set_image( gtk.image_new_from_stock(gtk.STOCK_REVERT_TO_SAVED, gtk.ICON_SIZE_MENU) )
+                restore.set_sensitive( bool(self.selected_backup) )
+#                restore.connect( 'activate', self.delete_element, pthinfo[0][0], self.excluded_patterns, self.refresh_excluded_patterns_list )
+                menu.append(restore)
+                menu.show_all()
+                menu.popup(None, None, None, event.button, event.get_time())
+            return True
+        return False
+   
     def __init__(self):
         
         gnome.init("programname", "version")
@@ -389,6 +417,7 @@ class main_gui:
             col.set_sort_column_id(num)
         # and add its handlers
         file_list_widget.connect('row-activated', self.select_subdir)
+        file_list_widget.connect('button-press-event', self.file_list_button_press_event)
 
         # bind toolbar functions
         self.xml.get_widget('backup_button').connect('clicked', self.run_backup)
