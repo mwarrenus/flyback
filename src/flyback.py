@@ -143,10 +143,7 @@ class main_gui:
         selection = treeview.get_selection()
         liststore, rows = selection.get_selected_rows()
 
-        if self.selected_backup:
-            focus_dir = self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
-        else:
-            focus_dir = self.cur_dir
+        focus_dir = self.get_focus_dir()
 #        print 'focus_dir', focus_dir
         
         local_file = liststore[rows[0]][0].rstrip('/')
@@ -208,6 +205,13 @@ class main_gui:
         for n in self.available_backups:
             self.available_backup_list.append( (n,n) )
             
+    def get_focus_dir(self):
+        if self.selected_backup:
+            return self.backup.parent_backup_dir +'/'+ self.selected_backup.strftime(BACKUP_DIR_DATE_FORMAT) + self.cur_dir
+        else:
+            return self.cur_dir
+
+    
     def refresh_file_list(self):
         pardir_button = self.xml.get_widget('pardir_button')
         pardir_button.set_sensitive( self.cur_dir != '/' )
@@ -230,7 +234,12 @@ class main_gui:
 #        print 'previous_backup, previous_focus_dir', previous_backup, previous_focus_dir
         if True:
 #        try:
-            files = os.listdir(focus_dir)
+            try:
+                files = os.listdir(focus_dir)
+            except:
+                self.select_pardir(None)
+                return
+            
             files.sort()
             if sort_dirs_first:
                 dirs = []
@@ -338,14 +347,16 @@ class main_gui:
                 menu = gtk.Menu()
                 open = gtk.ImageMenuItem(stock_id=gtk.STOCK_OPEN)
 #                open.set_image( gtk.image_new_from_stock(gtk.STOCK_OPEN, gtk.ICON_SIZE_MENU) )
+                open.connect( 'activate', lambda x: self.select_subdir(self.xml.get_widget('file_list'), None, None) )
                 menu.append(open)
                 folder = gtk.ImageMenuItem(stock_id='Open Containing _Folder')
                 folder.set_image( gtk.image_new_from_stock(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU) )
+                folder.connect( 'activate', lambda x: desktop.open(self.get_focus_dir()) )
                 menu.append(folder)
                 restore = gtk.ImageMenuItem(stock_id="_Restore this Version")
                 restore.set_image( gtk.image_new_from_stock(gtk.STOCK_REVERT_TO_SAVED, gtk.ICON_SIZE_MENU) )
                 restore.set_sensitive( bool(self.selected_backup) )
-#                restore.connect( 'activate', self.delete_element, pthinfo[0][0], self.excluded_patterns, self.refresh_excluded_patterns_list )
+                restore.connect( 'activate', self.run_restore )
                 menu.append(restore)
                 menu.show_all()
                 menu.popup(None, None, None, event.button, event.get_time())
