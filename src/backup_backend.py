@@ -17,7 +17,7 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import os, sys, traceback, math
+import os, sys, traceback, math, sqlite3
 
 import dircache
 import desktop
@@ -28,6 +28,7 @@ import threading
 import help_data
 import config_backend
 import getopt
+import schema_upgrades
 
 #try
 import pygtk
@@ -40,9 +41,59 @@ import gobject
 
 
     
-BACKUP_DIR_DATE_FORMAT = "%Y%m%d_%H%M%S.backup"
+BACKUP_DATE_FORMAT = '%Y%m%d_%H%M%S'
+BACKUP_DIR_DATE_FORMAT = BACKUP_DATE_FORMAT+'.backup'
 
 client = config_backend.GConfConfig()
+
+def get_or_create_db(external_storage_location):
+    conn = sqlite3.connect( os.path.join( external_storage_location, 'flyback', 'backup_db.sqlite3' ) )
+    c = conn.cursor()
+    
+    # get our current schema version
+    try:
+        c.execute("select value from meta where key='schema_version'")
+        schema_version = int(c.fetchone()[0])
+        print 'schema_version', schema_version
+    except sqlite3.OperationalError:
+        schema_version = 0
+        
+    while True:
+        best_available_upgrade = None
+        best_available_upgrade_version = 0
+        
+        for version, upgrade in schema_upgrades.UPGRADES_SQLITE3.iteritems():
+            if version[0]!=schema_version:
+                continue
+            if version[1] > best_available_upgrade_version:
+                best_available_upgrade_version = version[1]
+                best_available_upgrade = upgrade
+                
+        if best_available_upgrade:
+            print 'upgrading your backup db from v%i to v%i' % (schema_version, best_available_upgrade_version)
+            for cmd in best_available_upgrade:
+                print '\t', cmd
+                c.execute(cmd)
+            conn.commit()
+            schema_version = best_available_upgrade_version
+        else:
+            break
+    return conn
+
+def start_operation(conn, type, start_time=datetime.utcnow()):
+    c = conn.cursor()
+    c.execute( "insert into operation (type,start_time) values (?,?)", (type, start_time.strftime(BACKUP_DATE_FORMAT)) )
+    c.execute( "select id from operation order by id desc" )
+    operation_id = c.fetchone()[0]
+    print 'starting operation', type, operation_id
+    return operation_id
+    
+def end_operation(conn, operation_id):
+    c = conn.cursor()
+    c.execute( "update operation set end_time=? where id=?", (datetime.utcnow().strftime(BACKUP_DATE_FORMAT), operation_id) )
+    print 'ending operation', operation_id
+    
+
 
 def get_external_storage_location_lock():
     external_storage_location = client.get_string("/apps/flyback/external_storage_location")
@@ -65,7 +116,6 @@ def release_external_storage_location_lock():
     if not external_storage_location:
         external_storage_location = '/external_storage_location'
     lockfile = external_storage_location +'/flyback/lockfile.txt'
-
     os.remove(lockfile)
     
 def get_x_years_ago(d, x):
@@ -159,19 +209,29 @@ class backup:
             eds.append( '--exclude="%s"' % x )
         return "nice -n19 rsync -av --one-file-system --delete "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
-    def run_cmd_output_gui(self, cmd):
+    def run_cmd_output_gui(self, conn, operation_id, cmd):
         if self.main_gui:
             text_view = self.xml.get_widget('backup_output_text')
             text_buffer = text_view.get_buffer()
-        output = []
+        final_out = []
+        final_err = []
 
         if self.main_gui:
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), '$ '+ cmd +'\n' )
             gtk.gdk.threads_leave()
-        stdin, stdout = os.popen4(cmd)
+        stdin, stdout, stderr = os.popen3(cmd)
         for line in stdout:
-            output.append(line)
+            final_out.append(line)
+            if self.main_gui:
+                gtk.gdk.threads_enter()
+                text_buffer.insert( text_buffer.get_end_iter(), line )
+                text_view.scroll_to_mark(text_buffer.get_insert(), 0.499)
+                gtk.gdk.threads_leave()
+            else:
+                print line
+        for line in stderr:
+            final_err.append(line)
             if self.main_gui:
                 gtk.gdk.threads_enter()
                 text_buffer.insert( text_buffer.get_end_iter(), line )
@@ -185,7 +245,12 @@ class backup:
             gtk.gdk.threads_leave()
         stdin.close()
         stdout.close()
-        return output
+        stderr.close()
+        
+        c = conn.cursor()
+        c.execute( "insert into command (operation_id,cmd,stdout,stderr) values (?,?,?,?)", (operation_id, cmd, '\n'.join(final_out), '\n'.join(final_err)) )
+        
+        return final_out
             
     def backup(self):
         if self.main_gui:
@@ -216,7 +281,10 @@ class backup:
             else:
                 print resp
 
-        new_backup = self.parent_backup_dir +'/'+ datetime.now().strftime(BACKUP_DIR_DATE_FORMAT)
+        conn = get_or_create_db( client.get_string("/apps/flyback/external_storage_location") )
+        start_time = datetime.utcnow()
+        operation_id = start_operation(conn, 'backup', start_time)
+        new_backup = self.parent_backup_dir +'/'+ start_time.strftime(BACKUP_DIR_DATE_FORMAT)
 
         if self.main_gui:
             gtk.gdk.threads_enter()
@@ -229,20 +297,24 @@ class backup:
 
         if latest_backup_dir:
             last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
-            self.run_cmd_output_gui("cp -al '%s' '%s'" % (last_backup, new_backup))
-            self.run_cmd_output_gui("chmod u+w '%s'" % new_backup)
+            self.run_cmd_output_gui(conn, operation_id, "cp -al '%s' '%s'" % (last_backup, new_backup))
+            self.run_cmd_output_gui(conn, operation_id, "chmod u+w '%s'" % new_backup)
         
         for dir in self.included_dirs:
-            self.run_cmd_output_gui("mkdir -p '%s'" % (new_backup + dir))
+            self.run_cmd_output_gui(conn, operation_id, "mkdir -p '%s'" % (new_backup + dir))
             cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
-            self.run_cmd_output_gui(cmd)
-        self.run_cmd_output_gui("chmod -w '%s'" % new_backup)
+            self.run_cmd_output_gui(conn, operation_id, cmd)
+        self.run_cmd_output_gui(conn, operation_id, "chmod -w '%s'" % new_backup)
+        
+        end_operation(conn, operation_id)
+        conn.commit()
+        conn.close()
         
         self.delete_too_old_backups()
         self.delete_old_backups_to_free_space()
         
         release_external_storage_location_lock()
-        
+
         if self.main_gui:
             gtk.gdk.threads_enter()
             self.main_gui.refresh_available_backup_list()
@@ -274,10 +346,13 @@ class backup:
         text_buffer = text_view.get_buffer()
         text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
         gtk.gdk.threads_leave()
+
+        conn = get_or_create_db( client.get_string("/apps/flyback/external_storage_location") )
+        operation_id = start_operation(conn, 'restore')
         
         if not os.path.isdir(dest):
             cmd = "mkdir -p '%s'" % dest
-            self.run_cmd_output_gui(cmd)
+            self.run_cmd_output_gui(conn, operation_id, cmd)
             gtk.gdk.threads_enter()
             text_buffer.insert( text_buffer.get_end_iter(), cmd +'\n' )
             text_view.scroll_to_mark(text_buffer.get_insert(), 0.1)
@@ -293,7 +368,7 @@ class backup:
                 cmd = 'cp -vR "%s" "%s"' % (file, dest)
             else:
                 cmd = 'cp -v "%s" "%s"' % (file, dest)
-            file_pairs = self.run_cmd_output_gui(cmd)
+            file_pairs = self.run_cmd_output_gui(conn, operation_id, cmd)
 #            for file_pair in file_pairs:
 #                to_f = file_pair.split(' -> ')[1].strip("'`\n")
 #                if os.path.isdir(to_f):
@@ -302,6 +377,10 @@ class backup:
 #                    cmd = 'chmod u+w "%s"' % to_f
 #                self.run_cmd_output_gui(True,cmd)
             
+        end_operation(conn, operation_id)
+        conn.commit()
+        conn.close()
+        
         gtk.gdk.threads_enter()
         restore_button.set_label('Restore')
         restore_button.set_sensitive(True)
@@ -323,12 +402,22 @@ class backup:
         if pref_delete_backups_after_unit=='days':
             delete_before_date = get_x_days_ago( datetime.now(), pref_delete_backups_after_qty )
 
+        conn = None
+
         if delete_before_date:
             for x in self.get_available_backups():
                 if x < delete_before_date:
+                    if not conn:
+                        conn = get_or_create_db( client.get_string("/apps/flyback/external_storage_location") )
+                        operation_id = start_operation(conn, 'delete_too_old_backups')
                     backup_dir = self.parent_backup_dir +'/'+ x.strftime(BACKUP_DIR_DATE_FORMAT)
-                    self.run_cmd_output_gui("chmod u+w '%s'" % backup_dir)
-                    self.run_cmd_output_gui("rm -Rf '%s'" % backup_dir)
+                    self.run_cmd_output_gui(conn, operation_id, "chmod u+w '%s'" % backup_dir)
+                    self.run_cmd_output_gui(conn, operation_id, "rm -Rf '%s'" % backup_dir)
+        
+        if conn:
+            end_operation(conn, operation_id)
+            conn.commit()
+            conn.close()
                     
 
     def delete_old_backups_to_free_space(self):
@@ -347,14 +436,23 @@ class backup:
         
         available_backups = self.get_available_backups()
         available_backups.reverse()
+
+        conn = None
         
         for x in available_backups:
             free_space = get_free_space(self.parent_backup_dir)
             if free_space < min_free_space:
                 print 'x, free_space, min_free_space', x, free_space, min_free_space
+                if not conn:
+                    conn = get_or_create_db( client.get_string("/apps/flyback/external_storage_location") )
+                    operation_id = start_operation(conn, 'delete_too_old_backups')
                 backup_dir = self.parent_backup_dir +'/'+ x.strftime(BACKUP_DIR_DATE_FORMAT)
-                self.run_cmd_output_gui("chmod u+w '%s'" % backup_dir)
-                self.run_cmd_output_gui("rm -Rf '%s'" % backup_dir)
+                self.run_cmd_output_gui(conn, operation_id, "chmod u+w '%s'" % backup_dir)
+                self.run_cmd_output_gui(conn, operation_id, "rm -Rf '%s'" % backup_dir)
             else:
                 break
                 
+        if conn:
+            end_operation(conn, operation_id)
+            conn.commit()
+            conn.close()
