@@ -88,9 +88,9 @@ def start_operation(conn, type, start_time=datetime.utcnow()):
     print 'starting operation', type, operation_id
     return operation_id
     
-def end_operation(conn, operation_id):
+def end_operation(conn, operation_id, failure=None):
     c = conn.cursor()
-    c.execute( "update operation set end_time=? where id=?", (datetime.utcnow().strftime(BACKUP_DATE_FORMAT), operation_id) )
+    c.execute( "update operation set end_time=?, failure=? where id=?", (datetime.utcnow().strftime(BACKUP_DATE_FORMAT), failure, operation_id) )
     print 'ending operation', operation_id
     
 
@@ -284,29 +284,43 @@ class backup:
         conn = get_or_create_db( client.get_string("/apps/flyback/external_storage_location") )
         start_time = datetime.utcnow()
         operation_id = start_operation(conn, 'backup', start_time)
-        new_backup = self.parent_backup_dir +'/'+ start_time.strftime(BACKUP_DIR_DATE_FORMAT)
+                
+        try:
 
-        if self.main_gui:
-            gtk.gdk.threads_enter()
-            backup_button.set_label('Backup is running...')
-            backup_button.set_sensitive(False)
-            text_view = self.xml.get_widget('backup_output_text')
-            text_buffer = text_view.get_buffer()
-            text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
-            gtk.gdk.threads_leave()
+            new_backup = self.parent_backup_dir +'/'+ start_time.strftime(BACKUP_DIR_DATE_FORMAT)
+    
+            if self.main_gui:
+                gtk.gdk.threads_enter()
+                backup_button.set_label('Backup is running...')
+                backup_button.set_sensitive(False)
+                text_view = self.xml.get_widget('backup_output_text')
+                text_buffer = text_view.get_buffer()
+                text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
+                gtk.gdk.threads_leave()
+    
+            if latest_backup_dir:
+                last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
+                self.run_cmd_output_gui(conn, operation_id, "cp -al '%s' '%s'" % (last_backup, new_backup))
+                self.run_cmd_output_gui(conn, operation_id, "chmod u+w '%s'" % new_backup)
+            
+            for dir in self.included_dirs:
+                self.run_cmd_output_gui(conn, operation_id, "mkdir -p '%s'" % (new_backup + dir))
+                cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
+                self.run_cmd_output_gui(conn, operation_id, cmd)
+            self.run_cmd_output_gui(conn, operation_id, "chmod -w '%s'" % new_backup)
 
-        if latest_backup_dir:
-            last_backup = self.parent_backup_dir +'/'+ latest_backup_dir.strftime(BACKUP_DIR_DATE_FORMAT)
-            self.run_cmd_output_gui(conn, operation_id, "cp -al '%s' '%s'" % (last_backup, new_backup))
-            self.run_cmd_output_gui(conn, operation_id, "chmod u+w '%s'" % new_backup)
+            end_operation(conn, operation_id)
+            
+        except:
+            if self.main_gui:
+                error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+                error.connect('response', lambda x,y: error.destroy())
+                error.set_markup(sys.exc_info()[0])
+                error.show()
+            else:
+                print 'error:', sys.exc_info()[0]
+            end_operation(conn, operation_id, sys.exc_info()[0])
         
-        for dir in self.included_dirs:
-            self.run_cmd_output_gui(conn, operation_id, "mkdir -p '%s'" % (new_backup + dir))
-            cmd = self.get_backup_command(latest_backup_dir, dir, new_backup)
-            self.run_cmd_output_gui(conn, operation_id, cmd)
-        self.run_cmd_output_gui(conn, operation_id, "chmod -w '%s'" % new_backup)
-        
-        end_operation(conn, operation_id)
         conn.commit()
         conn.close()
         
