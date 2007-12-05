@@ -12,6 +12,7 @@ UPGRADES_SQLITE3 = {
     ],
     (2,3): [
         "ALTER TABLE operation ADD COLUMN failure TEXT;"
+        "UPDATE meta SET value='3' where key='schema_version';",
     ],
 
 }

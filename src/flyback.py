@@ -378,6 +378,7 @@ class main_gui:
         self.xml.get_widget('prefs_dialog').connect("delete-event", self.hide_window)
         self.xml.get_widget('help_window').connect("delete-event", self.hide_window)
         self.xml.get_widget('window_opengl').connect("delete-event", self.hide_window)
+        self.xml.get_widget('history_dialog').connect("delete-event", self.hide_window)
     
         # init opengl frontend
 #        main.show_all()
@@ -441,6 +442,7 @@ class main_gui:
         # bind menu functions
         self.xml.get_widget('menuitem_about').connect('activate', self.show_about_dialog)
         self.xml.get_widget('menuitem_prefs').connect('activate', lambda w: prefs_gui(self) )
+        self.xml.get_widget('menuitem_backup_history').connect('activate', lambda w: HistoryGUI(self) )
         self.xml.get_widget('menuitem_quit').connect('activate', gtk.main_quit)
         menuitem_show_output = self.xml.get_widget('menuitem_show_output')
         menuitem_show_output.connect('activate', self.show_hide_output )
@@ -739,6 +741,42 @@ class prefs_gui:
         self.refresh_excluded_patterns_list()
 
         
+class HistoryGUI:
+    
+    xml = None
+    main_gui = None
+    
+    treestore = gtk.TreeStore(str, str, str, 'gboolean') # type, start, time, error
+    
+    def refresh(self):
+        conn = get_or_create_db()
+        c = conn.cursor()
+        c.execute("select type, start_time, end_time, failure from operation order by id desc;")
+        for x in c:
+            iter = self.treestore.append(None, (x[0], x[1], x[2], not bool(x[3])) )
+        conn.close()
+    
+    def __init__(self, o):
+        self.xml = o.xml
+        self.main_gui = o
+        
+        operation_list_widget = self.xml.get_widget('operation_list')
+        operation_list_widget.set_model(self.treestore)
+        operation_list_widget.set_headers_visible(True)
+        #operation_list_widget.connect('button-press-event', self.include_dir_button_press_event)
+        operation_list_widget.append_column( gtk.TreeViewColumn("type", gtk.CellRendererText(), text=0) )
+        operation_list_widget.append_column( gtk.TreeViewColumn("start_time", gtk.CellRendererText(), text=1) )
+        operation_list_widget.append_column( gtk.TreeViewColumn("end_time", gtk.CellRendererText(), text=2) )
+        operation_list_widget.append_column( gtk.TreeViewColumn("success", gtk.CellRendererText(), text=3) )
+        self.refresh()
+
+        # bind close button
+        self.xml.get_widget('history_dialog_close').connect('clicked', lambda w: self.xml.get_widget('history_dialog').hide() )
+
+        self.xml.get_widget('history_dialog').show()
+
+
+
 def main():
     # parse command line options
     try:

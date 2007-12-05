@@ -46,7 +46,7 @@ BACKUP_DIR_DATE_FORMAT = BACKUP_DATE_FORMAT+'.backup'
 
 client = config_backend.GConfConfig()
 
-def get_or_create_db(external_storage_location):
+def get_or_create_db( external_storage_location=client.get_string("/apps/flyback/external_storage_location") ):
     conn = sqlite3.connect( os.path.join( external_storage_location, 'flyback', 'backup_db.sqlite3' ) )
     c = conn.cursor()
     
