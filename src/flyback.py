@@ -129,15 +129,15 @@ def humanize_count(x, s, p, places=1):
     
 def humanize_timedelta(td):
     s = td.seconds
-    m = s/60.0
-    h = m/60.0
-    d = h/24.0
     if s<60:
         return humanize_count( s, 'second', 'seconds' )
+    m = s/60.0
     if m<60:
         return humanize_count( m, 'minute', 'minutes' )
+    h = m/60.0
     if h<24:
         return humanize_count( h, 'hour', 'hours' )
+    d = h/24.0
     return humanize_count( d, 'day', 'days' )
 
 class main_gui:
