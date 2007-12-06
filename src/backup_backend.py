@@ -93,6 +93,9 @@ def end_operation(conn, operation_id, failure=None):
     c.execute( "update operation set end_time=?, failure=? where id=?", (datetime.utcnow().strftime(BACKUP_DATE_FORMAT), failure, operation_id) )
     print 'ending operation', operation_id
     
+def get_tz_offset():
+    td = datetime.now() - datetime.utcnow()
+    return timedelta( td.days, td.seconds + round(td.microseconds/1000000.0) )
 
 
 def get_external_storage_location_lock():
