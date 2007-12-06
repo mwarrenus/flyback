@@ -207,10 +207,14 @@ class backup:
             return None
     
     def get_backup_command(self, latest_backup_dir, dir, new_backup):
-        eds = []
+        options = []
+        options.append('-av')
+        options.append('--delete')
+        if client.get_bool('/apps/flyback/prefs_only_one_file_system_checkbutton'):
+            options.append('--one-file-system')
         for x in self.excluded_patterns:
-            eds.append( '--exclude="%s"' % x )
-        return "nice -n19 rsync -av --one-file-system --delete "+ ' '.join(eds) +" '%s/' '%s/'" % (dir, new_backup + dir)
+            options.append( '--exclude="%s"' % x )
+        return "nice -n19 rsync "+ ' '.join(options) +" '%s/' '%s/'" % (dir, new_backup + dir)
     
     def run_cmd_output_gui(self, conn, operation_id, cmd):
         if self.main_gui:

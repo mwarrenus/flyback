@@ -503,6 +503,7 @@ class prefs_gui:
         if not os.path.isdir(external_storage_location + '/flyback'):
             os.mkdir(external_storage_location + '/flyback')
         client.set_list("/apps/flyback/included_dirs", self.included_dirs )
+        client.set_bool( '/apps/flyback/prefs_only_one_file_system_checkbutton', self.xml.get_widget('prefs_only_one_file_system_checkbutton').get_active() )
         client.set_list("/apps/flyback/excluded_patterns", self.excluded_patterns )
         if self.xml.get_widget('pref_run_backup_automatically').get_active():
             crontab = self.save_crontab()
@@ -694,6 +695,7 @@ class prefs_gui:
 
         # init includes / excludes
         self.included_dirs = client.get_list("/apps/flyback/included_dirs")
+        self.xml.get_widget('prefs_only_one_file_system_checkbutton').set_active( client.get_bool('/apps/flyback/prefs_only_one_file_system_checkbutton') )
         self.excluded_patterns = client.get_list("/apps/flyback/excluded_patterns", DEFAULT_EXCLUDES)
         
         # init backup crontab
