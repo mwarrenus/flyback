@@ -140,7 +140,7 @@ def humanize_timedelta(td):
     d = h/24.0
     return humanize_count( d, 'day', 'days' )
 
-class main_gui:
+class MainGUI:
     
     xml = None
     selected_backup = None
@@ -455,7 +455,7 @@ class main_gui:
         
         # bind menu functions
         self.xml.get_widget('menuitem_about').connect('activate', self.show_about_dialog)
-        self.xml.get_widget('menuitem_prefs').connect('activate', lambda w: prefs_gui(self) )
+        self.xml.get_widget('menuitem_prefs').connect('activate', lambda w: PrefsGUI(self) )
         self.xml.get_widget('menuitem_backup_history').connect('activate', lambda w: HistoryGUI(self) )
         self.xml.get_widget('menuitem_quit').connect('activate', gtk.main_quit)
         menuitem_show_output = self.xml.get_widget('menuitem_show_output')
@@ -480,10 +480,10 @@ class main_gui:
         
         # if no external storage defined, show prefs
         if not client.get_string("/apps/flyback/external_storage_location"):
-            prefs_gui(self)
+            PrefsGUI(self)
 
 
-class prefs_gui:
+class PrefsGUI:
     
     xml = None
     main_gui = None
@@ -910,7 +910,7 @@ def main():
             backup().backup()
             sys.exit(0)
 
-    main_gui()
+    MainGUI()
     gtk.main()
 
 
