@@ -126,6 +126,19 @@ def humanize_count(x, s, p, places=1):
         return str(x) +' ' + s
     else:
         return str(x) +' ' + p
+    
+def humanize_timedelta(td):
+    s = td.seconds
+    m = s/60.0
+    h = m/60.0
+    d = h/24.0
+    if s<60:
+        return humanize_count( s, 'second', 'seconds' )
+    if m<60:
+        return humanize_count( m, 'minute', 'minutes' )
+    if h<24:
+        return humanize_count( h, 'hour', 'hours' )
+    return humanize_count( d, 'day', 'days' )
 
 class main_gui:
     
@@ -747,15 +760,71 @@ class HistoryGUI:
     main_gui = None
     
     treestore = gtk.TreeStore(str, str, str, 'gboolean') # type, start, time, error
+    cmd_stdouts = {}
+    cmd_stderrs = {}
+    
     
     def refresh(self):
+        self.treestore.clear()
+        self.cmd_stdouts = {}
+        self.cmd_stderrs = {}
         conn = get_or_create_db()
         c = conn.cursor()
-        c.execute("select type, start_time, end_time, failure from operation order by id desc;")
+        d = conn.cursor()
+        xx = -1
+        c.execute("select type, start_time, end_time, failure, id from operation order by id desc;")
         for x in c:
-            iter = self.treestore.append(None, (x[0], x[1], x[2], not bool(x[3])) )
+            xx += 1
+            if x[0]=='backup': type = 'backup'
+            if x[0]=='restore': type = 'restore'
+            if x[0]=='delete_old_backups_to_free_space': type = 'cleanup'
+            if x[0]=='delete_too_old_backups': type = 'cleanup'
+            try:
+                when = datetime(*strptime(x[1], BACKUP_DATE_FORMAT)[0:6])
+                time_length = humanize_timedelta( datetime(*strptime(x[2], BACKUP_DATE_FORMAT)[0:6]) - when )
+            except:
+                print 'error:', sys.exc_info()
+                when = ''
+                time_length = ''
+            iter = self.treestore.append(None, (type, when, time_length, not bool(x[3])) )
+            
+            d.execute("select cmd, stdout, stderr from command where operation_id=? order by id;", (x[4],) )
+            yy = -1
+            all_stdouts = []
+            all_stderrs = []
+            for y in d:
+                yy += 1
+                cmds = y[0].split()
+                cmd = cmds[0]
+                if cmd=='nice':
+                    cmd = cmds[2]
+                iter2 = self.treestore.append(iter, (cmd,'','','') )
+                self.cmd_stdouts[(xx,yy)] = '$ '+ y[0] +'\n'+ y[1]
+                self.cmd_stderrs[(xx,yy)] = '$ '+ y[0] +'\n'+ y[2]
+                all_stdouts.append( self.cmd_stdouts[(xx,yy)] )
+                all_stderrs.append( self.cmd_stderrs[(xx,yy)] )
+            self.cmd_stdouts[(xx,)] = ''.join(all_stdouts)
+            self.cmd_stderrs[(xx,)] = ''.join(all_stderrs)
+            
         conn.close()
     
+    def select_cmd(self, treeview):
+        selection = treeview.get_selection()
+        liststore, rows = selection.get_selected_rows()
+        if rows:
+            try:
+                text_view = self.xml.get_widget('stdout')
+                text_buffer = text_view.get_buffer()
+#                text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
+                text_buffer.set_text( self.cmd_stdouts[rows[0]] )
+                text_view = self.xml.get_widget('stderr')
+                text_buffer = text_view.get_buffer()
+#                text_buffer.delete( text_buffer.get_start_iter(), text_buffer.get_end_iter() )
+                text_buffer.set_text( self.cmd_stderrs[rows[0]] )
+            except:
+                print 'error:', sys.exc_info()
+                pass
+
     def __init__(self, o):
         self.xml = o.xml
         self.main_gui = o
@@ -764,14 +833,17 @@ class HistoryGUI:
         operation_list_widget.set_model(self.treestore)
         operation_list_widget.set_headers_visible(True)
         #operation_list_widget.connect('button-press-event', self.include_dir_button_press_event)
-        operation_list_widget.append_column( gtk.TreeViewColumn("type", gtk.CellRendererText(), text=0) )
-        operation_list_widget.append_column( gtk.TreeViewColumn("start_time", gtk.CellRendererText(), text=1) )
-        operation_list_widget.append_column( gtk.TreeViewColumn("end_time", gtk.CellRendererText(), text=2) )
-        operation_list_widget.append_column( gtk.TreeViewColumn("success", gtk.CellRendererText(), text=3) )
+        operation_list_widget.connect('cursor-changed', self.select_cmd)
+        operation_list_widget.append_column( gtk.TreeViewColumn("action", gtk.CellRendererText(), text=0) )
+        operation_list_widget.append_column( gtk.TreeViewColumn("when", gtk.CellRendererText(), text=1) )
+        operation_list_widget.append_column( gtk.TreeViewColumn("time", gtk.CellRendererText(), text=2) )
+        operation_list_widget.append_column( gtk.TreeViewColumn("success", gtk.CellRendererToggle(), active=3) )
+        #operation_list_widget.append_column( gtk.TreeViewColumn("success", gtk.CellRendererText(), text=3) )
         self.refresh()
 
         # bind close button
         self.xml.get_widget('history_dialog_close').connect('clicked', lambda w: self.xml.get_widget('history_dialog').hide() )
+        self.xml.get_widget('history_dialog_refresh').connect('clicked', lambda w: self.refresh() )
 
         self.xml.get_widget('history_dialog').show()
 

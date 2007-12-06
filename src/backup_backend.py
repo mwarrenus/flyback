@@ -318,8 +318,8 @@ class backup:
                 error.set_markup(sys.exc_info()[0])
                 error.show()
             else:
-                print 'error:', sys.exc_info()[0]
-            end_operation(conn, operation_id, sys.exc_info()[0])
+                print 'error:', sys.exc_info()
+            end_operation(conn, operation_id, sys.exc_info())
         
         conn.commit()
         conn.close()
@@ -459,7 +459,7 @@ class backup:
                 print 'x, free_space, min_free_space', x, free_space, min_free_space
                 if not conn:
                     conn = get_or_create_db( client.get_string("/apps/flyback/external_storage_location") )
-                    operation_id = start_operation(conn, 'delete_too_old_backups')
+                    operation_id = start_operation(conn, 'delete_old_backups_to_free_space')
                 backup_dir = self.parent_backup_dir +'/'+ x.strftime(BACKUP_DIR_DATE_FORMAT)
                 self.run_cmd_output_gui(conn, operation_id, "chmod u+w '%s'" % backup_dir)
                 self.run_cmd_output_gui(conn, operation_id, "rm -Rf '%s'" % backup_dir)

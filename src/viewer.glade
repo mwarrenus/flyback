@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <!DOCTYPE glade-interface SYSTEM "glade-2.0.dtd">
-<!--Generated with glade3 3.4.0 on Tue Dec  4 18:59:46 2007 -->
+<!--Generated with glade3 3.4.0 on Thu Dec  6 00:37:50 2007 -->
 <glade-interface>
   <widget class="GtkWindow" id="window1">
     <property name="width_request">600</property>
@@ -1013,8 +1013,11 @@ Do NOT use '/', '/home', or any directory you intend to include in your backups.
     </child>
   </widget>
   <widget class="GtkDialog" id="history_dialog">
+    <property name="width_request">400</property>
+    <property name="height_request">400</property>
     <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
     <property name="border_width">5</property>
+    <property name="title" translatable="yes">Backup History</property>
     <property name="window_position">GTK_WIN_POS_CENTER_ON_PARENT</property>
     <property name="type_hint">GDK_WINDOW_TYPE_HINT_DIALOG</property>
     <property name="has_separator">False</property>
@@ -1028,6 +1031,7 @@ Do NOT use '/', '/home', or any directory you intend to include in your backups.
             <property name="visible">True</property>
             <property name="can_focus">True</property>
             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+            <property name="position">250</property>
             <child>
               <widget class="GtkScrolledWindow" id="scrolledwindow8">
                 <property name="visible">True</property>
@@ -1130,6 +1134,17 @@ Do NOT use '/', '/home', or any directory you intend to include in your backups.
             <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
             <property name="layout_style">GTK_BUTTONBOX_END</property>
             <child>
+              <widget class="GtkButton" id="history_dialog_refresh">
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="events">GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK</property>
+                <property name="label" translatable="yes">gtk-refresh</property>
+                <property name="use_stock">True</property>
+                <property name="response_id">0</property>
+              </widget>
+            </child>
+            <child>
               <widget class="GtkButton" id="history_dialog_close">
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
@@ -1139,6 +1154,9 @@ Do NOT use '/', '/home', or any directory you intend to include in your backups.
                 <property name="use_stock">True</property>
                 <property name="response_id">0</property>
               </widget>
+              <packing>
+                <property name="position">1</property>
+              </packing>
             </child>
           </widget>
           <packing>
