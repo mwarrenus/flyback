@@ -217,7 +217,7 @@ class main_gui:
         self.available_backup_list.append( ('now',None) )
         for n in self.available_backups:
             adjusted_for_tz = n + get_tz_offset()
-            self.available_backup_list.append( (adjusted_for_tz,adjusted_for_tz) )
+            self.available_backup_list.append( (adjusted_for_tz,n) )
             
     def get_focus_dir(self):
         if self.selected_backup:
