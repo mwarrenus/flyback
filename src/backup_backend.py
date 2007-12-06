@@ -255,7 +255,7 @@ class backup:
         stderr.close()
         
         c = conn.cursor()
-        c.execute( "insert into command (operation_id,cmd,stdout,stderr) values (?,?,?,?)", (operation_id, cmd, '\n'.join(final_out), '\n'.join(final_err)) )
+        c.execute( "insert into command (operation_id,cmd,stdout,stderr) values (?,?,?,?)", (operation_id, cmd, ''.join(final_out), ''.join(final_err)) )
         
         return final_out
             
