@@ -494,6 +494,37 @@ class prefs_gui:
     excluded_patterns_liststore = gtk.ListStore(gobject.TYPE_STRING)
     pref_delete_backups_free_space_units = ['MB','GB']
     pref_delete_backups_after_units = ['days','months','years']
+    
+    pref_cron_minute_options = [
+        ['on the hour', '0'],
+        ['15 minutes after the hour', '15'],
+        ['30 minutes after the hour', '30'],
+        ['45 minutes after the hour', '45'],
+        ['every half an hour', '0,30'],
+        ['every 15 minutes', '0,15,30,45'],
+    ]
+    pref_cron_hour_options = [
+        ['every hour', '*'],
+        ['every other hour', '*/2'],
+        ['every hour (8am-8pm)', '8-20'],
+        ['every other hour (8am-8pm)', '8,10,12,14,16,18,20'],
+        ['at noon and midnight', '0,12'],
+        ['at 3am', '3'],
+    ]
+    pref_cron_day_week_options = [
+        ['every day of the week', '*'],
+        ['every weekday', '1,2,3,4,5'],
+        ['on monday/wednesday/friday', '1,3,5'],
+        ['on tuesday/thursday/saturday', '2,4,6'],
+        ['only on sunday', '0'],
+    ]
+    pref_cron_day_month_options = [
+        ['every day of the month', '*'],
+        ['on the first of the month', '1'],
+        ['on the 1st and the 15h', '1,15'],
+        ['on the 1st, 10th and 20th', '1,10,20'],
+        ['on the 1st, 8th, 16th and 24th', '1,8,16,24'],
+    ]
             
     def save_prefs(self, o):
         external_storage_location = self.xml.get_widget('external_storage_location').get_current_folder()
@@ -610,8 +641,18 @@ class prefs_gui:
         self.xml.get_widget('help_text').get_buffer().set_text(help_data.EXCLUDED_PATTERNS)
         self.xml.get_widget('help_window').show()
         
+    def index_of_in_list_of_lists(self, value, list, column, not_found=-1):
+        for i in range(0,len(list)):
+            if value==list[i][column]:
+                return i
+        return not_found
+        
     def load_crontab(self, s):
         self.xml.get_widget('pref_run_backup_automatically').set_active( bool(s) )
+        self.xml.get_widget('pref_cron_minute').set_sensitive( bool(s) )
+        self.xml.get_widget('pref_cron_hour').set_sensitive( bool(s) )
+        self.xml.get_widget('pref_cron_day_week').set_sensitive( bool(s) )
+        self.xml.get_widget('pref_cron_day_month').set_sensitive( bool(s) )
         min = '0'
         hour = '3'
         day_month = '*'
@@ -620,27 +661,27 @@ class prefs_gui:
         
         try:
             sa = s.split(' ')
-            min = str(float(sa[0]))
+            min = sa[0]
             hour = sa[1]
             day_month = sa[2]
-            month = sa[3]
+            #month = sa[3]
             day_week = sa[4]
         except:
-            print 'count not parse gconf /apps/flyback/crontab - using defaults'
+            if s:
+                print 'count not parse gconf /apps/flyback/crontab - using defaults'
         
-        self.xml.get_widget('pref_crontab_min').set_value( float(min) )
-        self.xml.get_widget('pref_crontab_hour').set_text( hour )
-        self.xml.get_widget('pref_crontab_day_month').set_text( day_month )
-        self.xml.get_widget('pref_crontab_month').set_text( month )
-        self.xml.get_widget('pref_crontab_day_week').set_text( day_week )
+        self.xml.get_widget('pref_cron_minute').set_active( self.index_of_in_list_of_lists( min, self.pref_cron_minute_options, 1, 0 ) )
+        self.xml.get_widget('pref_cron_hour').set_active( self.index_of_in_list_of_lists( hour, self.pref_cron_hour_options, 1, 0 ) )
+        self.xml.get_widget('pref_cron_day_month').set_active( self.index_of_in_list_of_lists( day_month, self.pref_cron_day_month_options, 1, 0 ) )
+        self.xml.get_widget('pref_cron_day_week').set_active( self.index_of_in_list_of_lists( day_week, self.pref_cron_day_week_options, 1, 0 ) )
 
     def save_crontab(self):
         sa = []
-        sa.append( str(int(self.xml.get_widget('pref_crontab_min').get_value())) )
-        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_hour').get_text() ) )
-        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_day_month').get_text() ) )
-        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_month').get_text() ) )
-        sa.append( self.check_crontab_entry( self.xml.get_widget('pref_crontab_day_week').get_text() ) )
+        sa.append( self.pref_cron_minute_options[ self.xml.get_widget('pref_cron_minute').get_active() ][1] )
+        sa.append( self.pref_cron_hour_options[ self.xml.get_widget('pref_cron_hour').get_active() ][1] )
+        sa.append( self.pref_cron_day_month_options[ self.xml.get_widget('pref_cron_day_month').get_active() ][1] )
+        sa.append( '*' )
+        sa.append( self.pref_cron_day_week_options[ self.xml.get_widget('pref_cron_day_week').get_active() ][1] )
         return ' '.join(sa)
     
     def install_crontab(self, c):
@@ -668,18 +709,15 @@ class prefs_gui:
         else:
             return '*'
 
-    def set_model_from_list (self, cb, items):
+    def set_model_from_list (self, cb, items, index=None):
         """Setup a ComboBox or ComboBoxEntry based on a list of strings."""           
         model = gtk.ListStore(str)
         for i in items:
-            model.append([i])
+            if index==None:
+                model.append((i,))
+            else:
+                model.append((i[index],))
         cb.set_model(model)
-#        if type(cb) == gtk.ComboBoxEntry:
-#            cb.set_text_column(0)
-#        elif type(cb) == gtk.ComboBox:
-#            cell = gtk.CellRendererText()
-#            cb.pack_start(cell, True)
-#            cb.add_attribute(cell, 'text', 0)
 
     def __init__(self, o):
         self.xml = o.xml
@@ -699,6 +737,11 @@ class prefs_gui:
         self.excluded_patterns = client.get_list("/apps/flyback/excluded_patterns", DEFAULT_EXCLUDES)
         
         # init backup crontab
+        self.set_model_from_list( self.xml.get_widget('pref_cron_minute'), self.pref_cron_minute_options, index=0 )
+        self.set_model_from_list( self.xml.get_widget('pref_cron_hour'), self.pref_cron_hour_options, index=0 )
+        self.set_model_from_list( self.xml.get_widget('pref_cron_day_week'), self.pref_cron_day_week_options, index=0 )
+        self.set_model_from_list( self.xml.get_widget('pref_cron_day_month'), self.pref_cron_day_month_options, index=0 )
+        self.xml.get_widget('pref_run_backup_automatically').connect('toggled', lambda x: self.xml.get_widget('pref_cron_minute').set_sensitive(x.get_active()) == self.xml.get_widget('pref_cron_hour').set_sensitive(x.get_active()) == self.xml.get_widget('pref_cron_day_week').set_sensitive(x.get_active()) == self.xml.get_widget('pref_cron_day_month').set_sensitive(x.get_active())  )
         self.load_crontab( client.get_string("/apps/flyback/crontab") )
         
         # init backup auto-delete
