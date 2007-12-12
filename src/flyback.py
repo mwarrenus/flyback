@@ -20,7 +20,7 @@
 import os, sys, traceback, math
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
-VERSION = 'v0.4.0'
+VERSION = 'v0.5.0'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
 
 DEFAULT_EXCLUDES = [
@@ -66,46 +66,47 @@ import help_data
 import config_backend
 import getopt
 
-try:
-    import gconf
-except:
-    print 'error: could not find python module gconf'
-    sys.exit()
-try:
-    import pygtk
-except:
-    print 'error: could not find python module pygtk'
-    sys.exit()
-try:
-    pygtk.require("2.0")
-except:
-    print 'error: pygtk v2.0 or later is required'
-    sys.exit()
-try:
-    import gobject
-except:
-    print 'error: could not find python module gobject'
-    sys.exit()
-try:
-    import gtk
-    import gtk.glade
-except:
-    print 'error: could not find python module gtk'
-    sys.exit()
-try:
-    import gnome.ui
-except:
-    print 'error: could not find python module gnome'
-    sys.exit()
-    
 
 client = config_backend.GConfConfig()
 
 from backup_backend import *
 
-gobject.threads_init()
-gtk.gdk.threads_init()
 
+def init_gtk():
+    try:
+        import gconf
+    except:
+        print 'error: could not find python module gconf'
+        sys.exit()
+    try:
+        import pygtk
+    except:
+        print 'error: could not find python module pygtk'
+        sys.exit()
+    try:
+        pygtk.require("2.0")
+    except:
+        print 'error: pygtk v2.0 or later is required'
+        sys.exit()
+    try:
+        import gobject
+    except:
+        print 'error: could not find python module gobject'
+        sys.exit()
+    try:
+        import gtk
+        import gtk.glade
+    except:
+        print 'error: could not find python module gtk'
+        sys.exit()
+    try:
+        import gnome.ui
+    except:
+        print 'error: could not find python module gnome'
+        sys.exit()
+    gobject.threads_init()
+    gtk.gdk.threads_init()
+    
 def humanize_bytes(x):
     x = float(x)
     if x > math.pow(2,30):
@@ -910,6 +911,7 @@ def main():
             backup().backup()
             sys.exit(0)
 
+    init_gtk()
     MainGUI()
     gtk.main()
 
