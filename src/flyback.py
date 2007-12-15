@@ -728,7 +728,19 @@ class PrefsGUI:
         external_storage_location = client.get_string("/apps/flyback/external_storage_location")
         if not external_storage_location:
             external_storage_location = '/external_storage_location'
-        self.xml.get_widget('external_storage_location').set_current_folder( external_storage_location )
+        self.xml.get_widget('external_storage_location_dir').set_current_folder( external_storage_location )
+        if client.get_bool("/apps/flyback/external_storage_location_use_drive"):
+            self.xml.get_widget('external_storage_location_use_drive').set_active( True )
+            self.xml.get_widget('external_storage_location_dir').set_sensitive( False )
+            self.xml.get_widget('external_storage_location_drive').set_sensitive( True )
+            self.xml.get_widget('external_storage_location_unmount').set_sensitive( True )
+        else:
+            self.xml.get_widget('external_storage_location_use_dir').set_active( True )
+            self.xml.get_widget('external_storage_location_dir').set_sensitive( True )
+            self.xml.get_widget('external_storage_location_drive').set_sensitive( False )
+            self.xml.get_widget('external_storage_location_unmount').set_sensitive( False )
+            
+            
 
         self.xml.get_widget('prefs_dialog').show()
 
