@@ -57,7 +57,7 @@ DEFAULT_EXCLUDES = [
 
 
 
-import dircache
+import commands, dircache, pwd
 import desktop
 from datetime import datetime
 from time import strptime
@@ -489,6 +489,7 @@ class PrefsGUI:
     xml = None
     main_gui = None
     
+    users = []
     included_dirs = []
     included_dirs_liststore = gtk.ListStore(gobject.TYPE_STRING)
     excluded_patterns = []
@@ -526,9 +527,14 @@ class PrefsGUI:
         ['on the 1st, 10th and 20th', '1,10,20'],
         ['on the 1st, 8th, 16th and 24th', '1,8,16,24'],
     ]
+    
+    def should_we_uninstall_previous_users_crontab(self, x, y):
+        print x,y
+        #self.install_crontab(None, user=self.orig_backup_as_user)
             
     def save_prefs(self, o):
-        external_storage_location = self.xml.get_widget('external_storage_location').get_current_folder()
+        print 'saving'
+        external_storage_location = self.xml.get_widget('external_storage_location_dir').get_current_folder()
         client.set_string ("/apps/flyback/external_storage_location", external_storage_location )
         if not os.path.isdir(external_storage_location):
             os.mkdir(external_storage_location)
@@ -537,6 +543,7 @@ class PrefsGUI:
         client.set_list("/apps/flyback/included_dirs", self.included_dirs )
         client.set_bool( '/apps/flyback/prefs_only_one_file_system_checkbutton', self.xml.get_widget('prefs_only_one_file_system_checkbutton').get_active() )
         client.set_list("/apps/flyback/excluded_patterns", self.excluded_patterns )
+        
         if self.xml.get_widget('pref_run_backup_automatically').get_active():
             crontab = self.save_crontab()
             client.set_string ("/apps/flyback/crontab", crontab )
@@ -544,7 +551,14 @@ class PrefsGUI:
         else:
             client.set_string ("/apps/flyback/crontab", '' )
             self.install_crontab(None)
-        
+
+        self.backup_as_user = self.user_list[ self.xml.get_widget('run_backup_as_user').get_active() ][0]
+        if self.backup_as_user != self.orig_backup_as_user:
+            error = gtk.MessageDialog( type=gtk.MESSAGE_QUESTION, buttons=gtk.BUTTONS_YES_NO, flags=gtk.DIALOG_MODAL )
+            error.set_markup("<b>The 'run as user' option has changed.</b>\n\nWould you like to uninstall the previous user's (%s) flyback crontab entry?" % self.orig_backup_as_user)
+            error.connect('response', self.should_we_uninstall_previous_users_crontab )
+            error.show()
+                
         # delete backups
         client.set_bool( '/apps/flyback/pref_delete_backups_free_space', self.xml.get_widget('pref_delete_backups_free_space').get_active() )
         client.set_int( '/apps/flyback/pref_delete_backups_free_space_qty', int( self.xml.get_widget('pref_delete_backups_free_space_qty').get_value() ) )
@@ -685,10 +699,13 @@ class PrefsGUI:
         sa.append( self.pref_cron_day_week_options[ self.xml.get_widget('pref_cron_day_week').get_active() ][1] )
         return ' '.join(sa)
     
-    def install_crontab(self, c):
+    def install_crontab(self, c, user=None):
         existing_crons = []
+        if not user:
+            user = self.backup_as_user
+        print 'installing cron', c, 'for user', user
         
-        stdin, stdout = os.popen4('crontab -l')
+        stdin, stdout = os.popen4('gksu -u "%s" "crontab -l"' % user)
         for line in stdout:
             if line.startswith('no crontab for'): continue
             if line.endswith('#flyback\n'): continue
@@ -701,7 +718,7 @@ class PrefsGUI:
         f = open('/tmp/flyback_tmp_cron', 'w')
         f.writelines( existing_crons )
         f.close()
-        os.system('crontab /tmp/flyback_tmp_cron')
+        os.system('gksu -u "%s" "crontab /tmp/flyback_tmp_cron"' % user)
     
     def check_crontab_entry(self, s):
         sa = s.replace(' ',',').replace(',,',',').split(',')
@@ -710,7 +727,7 @@ class PrefsGUI:
         else:
             return '*'
 
-    def set_model_from_list (self, cb, items, index=None):
+    def set_model_from_list(self, cb, items, index=None):
         """Setup a ComboBox or ComboBoxEntry based on a list of strings."""           
         model = gtk.ListStore(str)
         for i in items:
@@ -729,7 +746,8 @@ class PrefsGUI:
         if not external_storage_location:
             external_storage_location = '/external_storage_location'
         self.xml.get_widget('external_storage_location_dir').set_current_folder( external_storage_location )
-        if client.get_bool("/apps/flyback/external_storage_location_use_drive"):
+        self.xml.get_widget('external_storage_location_unmount').set_active( client.get_bool("/apps/flyback/external_storage_location_unmount") )
+        if client.get_bool("/apps/flyback/external_storage_location_mount"):
             self.xml.get_widget('external_storage_location_use_drive').set_active( True )
             self.xml.get_widget('external_storage_location_dir').set_sensitive( False )
             self.xml.get_widget('external_storage_location_drive').set_sensitive( True )
@@ -739,8 +757,15 @@ class PrefsGUI:
             self.xml.get_widget('external_storage_location_dir').set_sensitive( True )
             self.xml.get_widget('external_storage_location_drive').set_sensitive( False )
             self.xml.get_widget('external_storage_location_unmount').set_sensitive( False )
-            
-            
+        
+        # init user
+        self.user_list = pwd.getpwall()
+        self.set_model_from_list( self.xml.get_widget('run_backup_as_user'), self.user_list, index=0 )
+        self.orig_backup_as_user = client.get_string("/apps/flyback/backup_as_user")
+        if not self.orig_backup_as_user:
+            self.orig_backup_as_user = commands.getoutput("whoami")
+        self.backup_as_user = self.orig_backup_as_user
+        self.xml.get_widget('run_backup_as_user').set_active( self.index_of_in_list_of_lists( self.backup_as_user, self.user_list, 0, 0 ) )
 
         self.xml.get_widget('prefs_dialog').show()
 
