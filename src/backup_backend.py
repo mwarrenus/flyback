@@ -17,7 +17,12 @@
 #    with this program; if not, write to the Free Software Foundation, Inc.,
 #    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-import os, sys, traceback, math, sqlite3
+import os, sys, traceback, math
+
+try:
+    import sqlite3
+except:
+    from pysqlite2 import dbapi2 as sqlite3
 
 import dircache
 import desktop
