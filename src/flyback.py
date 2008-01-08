@@ -290,14 +290,14 @@ class MainGUI:
                 try:
                     if os.path.isdir(full_file_name):
                         size = humanize_count( len(os.listdir(full_file_name)), 'item', 'items' )
-                        icon = pardir_button.render_icon(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU)
+                        icon = self.xml.get_widget('home_button').render_icon(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU)
 #                        color = False
                     else:
                         size = humanize_bytes(file_stats[6])
-                        icon = pardir_button.render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
+                        icon = self.xml.get_widget('home_button').render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
                 except:
                     size = ''
-                    icon = pardir_button.render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
+                    icon = self.xml.get_widget('home_button').render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
                 if show_hidden_files or not file.startswith('.'):
                     self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color, icon ))
 #        except:
@@ -496,6 +496,7 @@ class PrefsGUI:
     excluded_patterns_liststore = gtk.ListStore(gobject.TYPE_STRING)
     pref_delete_backups_free_space_units = ['MB','GB']
     pref_delete_backups_after_units = ['days','months','years']
+    drive_list = gtk.ListStore( str, gtk.gdk.Pixbuf )
     
     pref_cron_minute_options = [
         ['on the hour', '0'],
@@ -533,13 +534,34 @@ class PrefsGUI:
         #self.install_crontab(None, user=self.orig_backup_as_user)
             
     def save_prefs(self, o):
-        print 'saving'
-        external_storage_location = self.xml.get_widget('external_storage_location_dir').get_current_folder()
+        if self.xml.get_widget('external_storage_location_use_dir').get_active():
+            external_storage_location_type = 'dir'
+            external_storage_location = self.xml.get_widget('external_storage_location_dir').get_current_folder()
+        if self.xml.get_widget('external_storage_location_use_drive').get_active():
+            external_storage_location_type = 'drive'
+            sel = self.xml.get_widget('external_storage_location_drive').get_selected_items()
+            if sel:
+                external_storage_location = self.drive_list.get_value( self.drive_list.get_iter( sel[0] ), 0 )
+            else:
+                error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+                error.set_markup("<b>External Storage Location Error</b>\n\n"+"You must select an external storage location.")
+                error.connect('response', lambda x,y: error.destroy())
+                error.show()
+                return
+        print 'external_storage_location', external_storage_location
+        try:
+            if not os.path.isdir(external_storage_location):
+                os.mkdir(external_storage_location)
+            if not os.path.isdir(external_storage_location + '/flyback'):
+                os.mkdir(external_storage_location + '/flyback')
+        except:
+            error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+            error.set_markup("<b>External Storage Location Error</b>\n\n"+"You do not appear to have write access to your external storage location, or the location does not exist.")
+            error.connect('response', lambda x,y: error.destroy())
+            error.show()
+            return
         client.set_string ("/apps/flyback/external_storage_location", external_storage_location )
-        if not os.path.isdir(external_storage_location):
-            os.mkdir(external_storage_location)
-        if not os.path.isdir(external_storage_location + '/flyback'):
-            os.mkdir(external_storage_location + '/flyback')
+        client.set_string ("/apps/flyback/external_storage_location_type", external_storage_location_type )
         client.set_list("/apps/flyback/included_dirs", self.included_dirs )
         client.set_bool( '/apps/flyback/prefs_only_one_file_system_checkbutton', self.xml.get_widget('prefs_only_one_file_system_checkbutton').get_active() )
         client.set_list("/apps/flyback/excluded_patterns", self.excluded_patterns )
@@ -571,6 +593,7 @@ class PrefsGUI:
             
         self.xml.get_widget('prefs_dialog').hide()
         self.main_gui.refresh_available_backup_list()
+        print 'saving prefs... [done]'
         
     def add_include_dir(self, o):
             new_dir =  self.xml.get_widget('include_dir_filechooser').get_current_folder()
@@ -736,6 +759,40 @@ class PrefsGUI:
             else:
                 model.append((i[index],))
         cb.set_model(model)
+        
+    def change_external_storage_location_type(self, x):
+        self.xml.get_widget('external_storage_location_drive').set_sensitive( x.name=='external_storage_location_use_drive' )
+        self.xml.get_widget('external_storage_location_unmount').set_sensitive( x.name=='external_storage_location_use_drive' )
+        self.xml.get_widget('external_storage_location_drive_refresh').set_sensitive( x.name=='external_storage_location_use_drive' )
+        self.xml.get_widget('external_storage_location_dir').set_sensitive( x.name=='external_storage_location_use_dir' )
+        self.xml.get_widget('external_storage_location_ssh').set_sensitive( x.name=='external_storage_location_use_ssh' )
+
+    def update_external_storage_location_drives(self, o=None):
+        external_storage_location = client.get_string("/apps/flyback/external_storage_location")
+        self.drive_list.clear()
+        icon_stock_harddisk = self.xml.get_widget('home_button').render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
+        icon_stock_network_disk = self.xml.get_widget('home_button').render_icon(gtk.STOCK_NETWORK, gtk.ICON_SIZE_DIALOG)
+        index = 0
+        select_index = -1
+        for line in commands.getoutput('mount -v').split('\n'):
+            loc = line[ line.index(' on ')+4 : line.index(' type ') ]
+            type = line[ line.index(' type ')+6 : line.index(' ',line.index(' type ')+6) ]
+            if loc=='/': continue
+            if type in ( 'fat', 'msdos', 'ntfs', 'vfat', 'usbfs', ): continue  # don't back up to file systems lacking hard-links
+            if type in ('ext', 'ext2', 'ext3', 'fat', 'hfs', 'hpfs', 'jfs', 'minix', 'msdos', 'ntfs', 'ramfs', 'reiserfs', 'vfat', 'usbfs', 'xfs', ):
+                self.drive_list.append( (loc, icon_stock_harddisk) )
+                if external_storage_location==loc:
+                    select_index = index
+                index += 1
+            if type in ('cifs', 'ncpfs', 'nfs', 'nfs4', 'smbfs', ):
+                self.drive_list.append( (loc, icon_stock_network_disk) )
+                if external_storage_location==loc:
+                    select_index = index
+                index += 1
+        drive_list_widget = self.xml.get_widget('external_storage_location_drive')
+        if select_index >= 0:
+            drive_list_widget.select_path((select_index,))
+        
 
     def __init__(self, o):
         self.xml = o.xml
@@ -743,20 +800,46 @@ class PrefsGUI:
         
         # init external_storage_location
         external_storage_location = client.get_string("/apps/flyback/external_storage_location")
+        external_storage_location_type = client.get_string("/apps/flyback/external_storage_location_type")
+        print 'external_storage_location_type', external_storage_location_type
         if not external_storage_location:
             external_storage_location = '/external_storage_location'
-        self.xml.get_widget('external_storage_location_dir').set_current_folder( external_storage_location )
+        if not external_storage_location_type:
+            external_storage_location_type = 'dir'
         self.xml.get_widget('external_storage_location_unmount').set_active( client.get_bool("/apps/flyback/external_storage_location_unmount") )
-        if client.get_bool("/apps/flyback/external_storage_location_mount"):
+        if external_storage_location_type=='drive':
             self.xml.get_widget('external_storage_location_use_drive').set_active( True )
             self.xml.get_widget('external_storage_location_dir').set_sensitive( False )
             self.xml.get_widget('external_storage_location_drive').set_sensitive( True )
+            self.xml.get_widget('external_storage_location_ssh').set_sensitive( False )
             self.xml.get_widget('external_storage_location_unmount').set_sensitive( True )
-        else:
+        if external_storage_location_type=='dir':
+            self.xml.get_widget('external_storage_location_dir').set_current_folder( external_storage_location )
             self.xml.get_widget('external_storage_location_use_dir').set_active( True )
             self.xml.get_widget('external_storage_location_dir').set_sensitive( True )
             self.xml.get_widget('external_storage_location_drive').set_sensitive( False )
+            self.xml.get_widget('external_storage_location_ssh').set_sensitive( False )
             self.xml.get_widget('external_storage_location_unmount').set_sensitive( False )
+        if external_storage_location_type=='ssh':
+            self.xml.get_widget('external_storage_location_use_ssh').set_active( True )
+            self.xml.get_widget('external_storage_location_dir').set_sensitive( False )
+            self.xml.get_widget('external_storage_location_drive').set_sensitive( False )
+            self.xml.get_widget('external_storage_location_ssh').set_sensitive( True )
+            self.xml.get_widget('external_storage_location_unmount').set_sensitive( False )
+        self.xml.get_widget('external_storage_location_use_drive').connect('toggled', self.change_external_storage_location_type )
+        self.xml.get_widget('external_storage_location_use_dir').connect('toggled', self.change_external_storage_location_type )
+        self.xml.get_widget('external_storage_location_use_ssh').set_sensitive( False )
+        self.xml.get_widget('external_storage_location_use_ssh').connect('toggled', self.change_external_storage_location_type )
+        self.xml.get_widget('external_storage_location_drive_refresh').connect('clicked', self.update_external_storage_location_drives )
+        drive_list_widget = self.xml.get_widget('external_storage_location_drive')
+        drive_list_widget.set_model(self.drive_list)
+        drive_list_widget.set_text_column(0)
+        drive_list_widget.set_markup_column(0)
+        drive_list_widget.set_pixbuf_column(1)
+        drive_list_widget.set_orientation(gtk.ORIENTATION_VERTICAL)
+        drive_list_widget.set_selection_mode(gtk.SELECTION_SINGLE)
+        drive_list_widget.set_columns(10)
+        self.update_external_storage_location_drives()
         
         # init user
         self.user_list = pwd.getpwall()
