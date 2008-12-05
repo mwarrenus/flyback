@@ -107,9 +107,9 @@ def get_external_storage_location_lock():
     external_storage_location = client.get_string("/apps/flyback/external_storage_location")
     if not external_storage_location:
         external_storage_location = '/external_storage_location'
-    lockfile = external_storage_location +'/flyback/lockfile.txt'
+    lockfile = os.path.join( external_storage_location, 'flyback', 'lockfile.txt' )
 
-    if not os.path.isdir( external_storage_location +'/flyback' ):
+    if not os.path.isdir( os.path.join( external_storage_location, 'flyback' ) ):
         return "The external storage location you've specified does not exist.  Please update your preferences."
     if os.path.isfile(lockfile):
         return "The external storage location you've specified is already in use.  Please quit any other open instances of FlyBack (or wait for their backups to complete) before starting a new backup."
