@@ -282,7 +282,7 @@ class MainGUI:
     def __init__(self):
         
         gnome.init("programname", "version")
-        self.xml = gtk.glade.XML(RUN_FROM_DIR + 'viewer.glade')
+        self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'flyback.glade' ) )
         o = self
         self.backup = backup(o)
         
@@ -291,10 +291,8 @@ class MainGUI:
         main_window.connect("delete-event", self.check_if_safe_to_quit )
         icon = main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)
         main_window.set_icon(icon)
-        self.xml.get_widget('prefs_dialog').connect("delete-event", self.hide_window)
         self.xml.get_widget('help_window').connect("delete-event", self.hide_window)
         self.xml.get_widget('window_opengl').connect("delete-event", self.hide_window)
-        self.xml.get_widget('history_dialog').connect("delete-event", self.hide_window)
     
         # init opengl frontend
 #        main.show_all()

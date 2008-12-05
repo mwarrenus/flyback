@@ -273,8 +273,8 @@ class PrefsGUI:
     def update_external_storage_location_drives(self, o=None):
         external_storage_location = client.get_string("/apps/flyback/external_storage_location")
         self.drive_list.clear()
-        icon_stock_harddisk = self.xml.get_widget('home_button').render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
-        icon_stock_network_disk = self.xml.get_widget('home_button').render_icon(gtk.STOCK_NETWORK, gtk.ICON_SIZE_DIALOG)
+        icon_stock_harddisk = self.xml.get_widget('external_storage_location_use_drive').render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
+        icon_stock_network_disk = self.xml.get_widget('external_storage_location_use_drive').render_icon(gtk.STOCK_NETWORK, gtk.ICON_SIZE_DIALOG)
         index = 0
         select_index = -1
         for line in commands.getoutput('mount -v').split('\n'):
@@ -346,7 +346,8 @@ class PrefsGUI:
         self.pref_delete_backups_after_units = ['days','months','years']
         self.drive_list = gtk.ListStore( str, gtk.gdk.Pixbuf )
 
-        self.xml = o.xml
+        self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'prefs.glade' ) )
+        self.xml.get_widget('prefs_dialog').connect("delete-event", lambda window, x: window.destroy())
         self.main_gui = o
         
         # init external_storage_location

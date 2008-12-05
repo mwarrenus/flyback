@@ -94,7 +94,8 @@ class HistoryGUI:
                 pass
 
     def __init__(self, o):
-        self.xml = o.xml
+        self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'history.glade' ) )
+        self.xml.get_widget('history_dialog').connect("delete-event", lambda window, x: window.destroy() )
         self.main_gui = o
         
         operation_list_widget = self.xml.get_widget('operation_list')
