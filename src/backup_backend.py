@@ -391,9 +391,9 @@ class backup:
             file = src.rstrip('/') +'/'+ local_file
             print 'file', file
             if os.path.isdir(file):
-                cmd = 'cp -vR "%s" "%s"' % (file, dest)
+                cmd = 'cp -avR "%s" "%s"' % (file, dest)
             else:
-                cmd = 'cp -v "%s" "%s"' % (file, dest)
+                cmd = 'cp -av "%s" "%s"' % (file, dest)
             file_pairs = self.run_cmd_output_gui(conn, operation_id, cmd)
 #            for file_pair in file_pairs:
 #                to_f = file_pair.split(' -> ')[1].strip("'`\n")
