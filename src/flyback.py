@@ -168,7 +168,8 @@ class MainGUI:
                 files = dirs
                 files.extend(not_dirs)
             for file in files:
-                full_file_name = os.path.join( focus_dir, file )
+              full_file_name = os.path.join( focus_dir, file )
+              try:  
                 file_stats = os.stat(full_file_name)
                 color = False
 #                print 'full_file_name', full_file_name
@@ -201,8 +202,8 @@ class MainGUI:
                     icon = self.xml.get_widget('home_button').render_icon(gtk.STOCK_FILE, gtk.ICON_SIZE_MENU)
                 if show_hidden_files or not file.startswith('.'):
                     self.file_list.append(( file, size, datetime.fromtimestamp(file_stats[8]), color, icon ))
-#        except:
-#            traceback.print_stack()
+              except:  
+                traceback.print_stack()
         
     def show_about_dialog(self, o):
         about = gtk.AboutDialog()
