@@ -32,9 +32,10 @@ class HistoryGUI:
     
     
     def refresh(self):
-        self.treestore.clear()
-        self.cmd_stdouts = {}
-        self.cmd_stderrs = {}
+      self.treestore.clear()
+      self.cmd_stdouts = {}
+      self.cmd_stderrs = {}
+      try:
         conn = backup_backend.get_or_create_db()
         c = conn.cursor()
         d = conn.cursor()
@@ -75,6 +76,12 @@ class HistoryGUI:
             self.cmd_stderrs[(xx,)] = ''.join(all_stderrs)
             
         conn.close()
+      except:
+        error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
+        error.set_markup("""<b>Error Loading Backup DB</b>\n\nPlease set your backup location in the preferences.""")
+        error.run()
+        error.destroy()
+        
     
     def select_cmd(self, treeview):
         selection = treeview.get_selection()
