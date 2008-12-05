@@ -1,5 +1,5 @@
 #    FlyBack
-#    Copyright (C) 2007 Steve Leach
+#    Copyright (C) 2007 Derek Anderson, Steve Leach
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
