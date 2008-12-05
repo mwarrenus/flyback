@@ -164,7 +164,7 @@ def get_x_days_ago(d, x):
     return d - timedelta(x)
 
 def get_free_space(parent_backup_dir):
-    stdin, stdout = os.popen4( 'df %s' % parent_backup_dir )
+    stdin, stdout = os.popen4( 'df "%s"' % parent_backup_dir )
     return int(stdout.readlines()[1].split()[3]) # in KB
 
 
