@@ -55,6 +55,9 @@ DEFAULT_EXCLUDES = [
 ]
 
 
+if os.popen('which gksu').read(): SU_COMMAND = 'gksu'
+elif os.popen('which kdesu').read(): SU_COMMAND = 'kdesu'
+else: SU_COMMAND = 'su'
 
 
 import commands, dircache, pwd
@@ -728,7 +731,7 @@ class PrefsGUI:
             user = self.backup_as_user
         print 'installing cron', c, 'for user', user
         
-        stdin, stdout = os.popen4('gksu -u "%s" "crontab -l"' % user)
+        stdin, stdout = os.popen4( '%s -u "%s" "crontab -l"' % (SU_COMMAND, user) )
         for line in stdout:
             if line.startswith('no crontab for'): continue
             if line.endswith('#flyback\n'): continue
@@ -741,7 +744,7 @@ class PrefsGUI:
         f = open('/tmp/flyback_tmp_cron', 'w')
         f.writelines( existing_crons )
         f.close()
-        os.system('gksu -u "%s" "crontab /tmp/flyback_tmp_cron"' % user)
+        os.system( '%s -u "%s" "crontab /tmp/flyback_tmp_cron"' % (SU_COMMAND, user) )
     
     def check_crontab_entry(self, s):
         sa = s.replace(' ',',').replace(',,',',').split(',')
