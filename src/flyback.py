@@ -22,6 +22,7 @@ import os, sys, traceback, math
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0])) + '/'
 VERSION = 'v0.5.0'
 GPL = open( RUN_FROM_DIR + 'GPL.txt', 'r' ).read()
+USER = os.popen('whoami').read().strip()
 
 DEFAULT_EXCLUDES = [
     '.thumbnails/',
@@ -537,34 +538,8 @@ class PrefsGUI:
         #self.install_crontab(None, user=self.orig_backup_as_user)
             
     def save_prefs(self, o):
-        if self.xml.get_widget('external_storage_location_use_dir').get_active():
-            external_storage_location_type = 'dir'
-            external_storage_location = self.xml.get_widget('external_storage_location_dir').get_current_folder()
-        if self.xml.get_widget('external_storage_location_use_drive').get_active():
-            external_storage_location_type = 'drive'
-            sel = self.xml.get_widget('external_storage_location_drive').get_selected_items()
-            if sel:
-                external_storage_location = self.drive_list.get_value( self.drive_list.get_iter( sel[0] ), 0 )
-            else:
-                error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
-                error.set_markup("<b>External Storage Location Error</b>\n\n"+"You must select an external storage location.")
-                error.connect('response', lambda x,y: error.destroy())
-                error.show()
-                return
-        print 'external_storage_location', external_storage_location
-        try:
-            if not os.path.isdir(external_storage_location):
-                os.mkdir(external_storage_location)
-            if not os.path.isdir(external_storage_location + '/flyback'):
-                os.mkdir(external_storage_location + '/flyback')
-        except:
-            error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_OK, flags=gtk.DIALOG_MODAL )
-            error.set_markup("<b>External Storage Location Error</b>\n\n"+"You do not appear to have write access to your external storage location, or the location does not exist.")
-            error.connect('response', lambda x,y: error.destroy())
-            error.show()
-            return
-        client.set_string ("/apps/flyback/external_storage_location", external_storage_location )
-        client.set_string ("/apps/flyback/external_storage_location_type", external_storage_location_type )
+        client.set_string ("/apps/flyback/external_storage_location", self.external_storage_location )
+        client.set_string ("/apps/flyback/external_storage_location_type", self.external_storage_location_type )
         client.set_list("/apps/flyback/included_dirs", self.included_dirs )
         client.set_bool( '/apps/flyback/prefs_only_one_file_system_checkbutton', self.xml.get_widget('prefs_only_one_file_system_checkbutton').get_active() )
         client.set_list("/apps/flyback/excluded_patterns", self.excluded_patterns )
@@ -781,6 +756,7 @@ class PrefsGUI:
             loc = line[ line.index(' on ')+4 : line.index(' type ') ]
             type = line[ line.index(' type ')+6 : line.index(' ',line.index(' type ')+6) ]
             if loc=='/': continue
+            if loc=='/boot': continue
             if type in ( 'fat', 'msdos', 'ntfs', 'vfat', 'usbfs', ): continue  # don't back up to file systems lacking hard-links
             if type in ('ext', 'ext2', 'ext3', 'fat', 'hfs', 'hpfs', 'jfs', 'minix', 'msdos', 'ntfs', 'ramfs', 'reiserfs', 'vfat', 'usbfs', 'xfs', ):
                 self.drive_list.append( (loc, icon_stock_harddisk) )
@@ -795,7 +771,45 @@ class PrefsGUI:
         drive_list_widget = self.xml.get_widget('external_storage_location_drive')
         if select_index >= 0:
             drive_list_widget.select_path((select_index,))
+            
+    def set_ownership_of_dir_to_user( self, d ):
+      os.popen( '%s "chown -R \'%s\' \'%s\'"' % (SU_COMMAND, USER, d) ).close()
         
+    def check_write_perms_for_external_storage_location(self):
+      external_storage_location = None
+      if self.xml.get_widget('external_storage_location_use_dir').get_active():
+        external_storage_location_type = 'dir'
+        external_storage_location = self.xml.get_widget('external_storage_location_dir').get_current_folder()
+      if self.xml.get_widget('external_storage_location_use_drive').get_active():
+            external_storage_location_type = 'drive'
+            sel = self.xml.get_widget('external_storage_location_drive').get_selected_items()
+            if sel:
+                external_storage_location = self.drive_list.get_value( self.drive_list.get_iter( sel[0] ), 0 )
+        
+      if external_storage_location:
+        try:
+          if not os.path.isdir(external_storage_location):
+            os.mkdir(external_storage_location)
+          if not os.path.isdir( os.path.join( external_storage_location, 'flyback' ) ):
+            os.mkdir( os.path.join( external_storage_location, 'flyback' ) )
+          test_fn = os.path.join( external_storage_location, 'flyback', '.flyback_test_write_access' )
+          print test_fn
+          f = open( test_fn, 'w' )
+          f.close()
+          os.remove(test_fn)
+          self.external_storage_location = external_storage_location
+          self.external_storage_location_type = external_storage_location_type
+        except:
+          error = gtk.MessageDialog( type=gtk.MESSAGE_ERROR, buttons=gtk.BUTTONS_YES_NO, flags=gtk.DIALOG_MODAL )
+          error.set_markup("<b>External Storage Location Error</b>\n\n"+"You do not have write access to:\n%s\nWould you like to change its ownership to yourself?" % external_storage_location)
+          if gtk.RESPONSE_YES==error.run():
+            self.set_ownership_of_dir_to_user(external_storage_location)
+            self.check_write_perms_for_external_storage_location()
+          else:
+            self.xml.get_widget('external_storage_location_drive').unselect_all()
+          error.destroy()
+          return
+          
 
     def __init__(self, o):
         self.xml = o.xml
@@ -842,6 +856,7 @@ class PrefsGUI:
         drive_list_widget.set_orientation(gtk.ORIENTATION_VERTICAL)
         drive_list_widget.set_selection_mode(gtk.SELECTION_SINGLE)
         drive_list_widget.set_columns(10)
+        drive_list_widget.connect('selection-changed', lambda x: self.check_write_perms_for_external_storage_location() )
         self.update_external_storage_location_drives()
         
         # init user
