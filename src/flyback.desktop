@@ -10,6 +10,6 @@ FilePattern=flyback;
 Exec=/usr/share/flyback/flyback.py
 Terminal=false
 StartupNotify=false
-Categories=Application;System Tools;
+Categories=Application;System;
 GenericName[en_GB]=Backup Utility
 
