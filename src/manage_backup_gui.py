@@ -29,17 +29,33 @@ class GUI(object):
   def update_files(self,a=None):
     treeview_files_model = self.xml.get_widget('treeview_files').get_model()
     treeview_files_model.clear()
+    treeview_files_model.append( (util.pango_escape('loading files... (please wait)'),) )
     
     model, entry = a.get_selection().get_selected()
     if not entry:
-      self.xml.get_widget('toolbutton_export').set_sensitive( False )
-      self.xml.get_widget('toolbutton_explore').set_sensitive( False )
-    else:
-      self.xml.get_widget('toolbutton_export').set_sensitive( True )
-      self.xml.get_widget('toolbutton_explore').set_sensitive( True )
-      rev = entry and model.get_value(entry, 1)
-      for fn in backup.get_files_for_revision(self.uuid, self.host, self.path, rev):
-        treeview_files_model.append( (util.pango_escape(fn),) )
+      treeview_files_model.clear()
+      return
+    self.xml.get_widget('toolbutton_export').set_sensitive( True )
+    self.xml.get_widget('toolbutton_explore').set_sensitive( True )
+    rev = entry and model.get_value(entry, 1)
+    
+    icon = self.main_window.render_icon(gtk.STOCK_FIND, gtk.ICON_SIZE_MENU)
+    running_tasks_model = self.xml.get_widget('running_tasks').get_model()
+    i = running_tasks_model.append( ( icon, util.pango_escape('loading files for rev: '+self.path) ) )
+    gui = self
+    
+    class T(threading.Thread):
+      def run(self):
+        if rev not in gui.rev_files_map:
+          gui.rev_files_map[rev] = backup.get_files_for_revision(gui.uuid, gui.host, gui.path, rev)
+        gtk.gdk.threads_enter()
+        if rev==gui.get_selected_revision():
+          treeview_files_model.clear()
+          for fn in gui.rev_files_map[rev]:
+            treeview_files_model.append( (util.pango_escape(fn),) )
+        running_tasks_model.remove(i)
+        gtk.gdk.threads_leave()
+    T().start()
   
   def get_selected_revision(self):
     model, entry = self.xml.get_widget('treeview_revisions').get_selection().get_selected()
@@ -123,6 +139,8 @@ class GUI(object):
     self.uuid = uuid
     self.host = host
     self.path = path
+    
+    self.rev_files_map = {}
   
     self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'glade', 'manage_backup.glade' ) )
     self.main_window = self.xml.get_widget('window')
@@ -147,7 +165,6 @@ class GUI(object):
     treeview_revisions_widget.append_column( gtk.TreeViewColumn('History', renderer, markup=0) )
     treeview_revisions_widget.set_model(treeview_revisions_model)
     treeview_revisions_widget.connect( 'cursor-changed', self.update_files )
-    treeview_revisions_widget.connect( 'move-cursor', self.update_files )
     treeview_revisions_widget.set_property('rules-hint', True)
     self.update_revisions()
     
@@ -159,6 +176,7 @@ class GUI(object):
     treeview_files_widget.append_column( gtk.TreeViewColumn('Files', renderer, markup=0) )
     treeview_files_widget.set_model(treeview_files_model)
     treeview_files_widget.set_property('rules-hint', True)
+    treeview_files_model.append( (util.pango_escape('please select a revision to view... (on the left)'),) )
 
     # task list
     running_tasks_widget = self.xml.get_widget('running_tasks')

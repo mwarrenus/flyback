@@ -136,9 +136,12 @@ def init_backup(uuid, host, path):
   cmd = 'GIT_DIR="%s" git init' % (git_dir,)
   print '$', cmd
   f = os.popen(cmd)
-  s = f.read()
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
   f.close()
-  print s
+  s = ''.join(s)
   
   # write config info
   f = open( os.path.join(git_dir, 'flyback_properties.pickle'), 'w' )
@@ -170,20 +173,26 @@ def backup(uuid, host, path):
   git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="." git ' % (git_dir,)
   
   # add any new files
-  cmd = git_cmd + 'add *'
+  cmd = git_cmd + 'add -v *'
   print '$', cmd
   f = os.popen(cmd)
-  s = f.read()
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
   f.close()
-  print s
+  s = ''.join(s)
   
   # commit
-  cmd = git_cmd + 'commit . -m "commited by: %s v%s"' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION)
+  cmd = git_cmd + 'commit -v . -m "commited by: %s v%s"' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION)
   print '$', cmd
   f = os.popen(cmd)
-  s = f.read()
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
   f.close()
-  print s
+  s = ''.join(s)
 
 
 def get_preferences(uuid, host, path):
@@ -246,9 +255,12 @@ def get_revisions(uuid, host, path):
   cmd = git_cmd + 'log'
   print '$', cmd
   f = os.popen(cmd)
-  s = f.read()
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
   f.close()
-  print s
+  s = ''.join(s)
   
   log = []
   if s:
@@ -281,9 +293,12 @@ def get_files_for_revision(uuid, host, path, rev):
   cmd = git_cmd + 'ls-tree -r --name-only ' + rev
   print '$', cmd
   f = os.popen(cmd)
-  s = f.read()
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
   f.close()
-  print s
+  s = ''.join(s)
   rmdir(tmp)
   os.chdir(RUN_FROM_DIR)
   return [ x.strip('"') for x in s.split('\n') ]
@@ -298,9 +313,12 @@ def export_revision(uuid, host, path, rev, target_path):
   cmd = git_cmd + 'archive %s | gzip > "%s"' % (rev, fn)
   print '$', cmd
   f = os.popen(cmd)
-  s = f.read()
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
   f.close()
-  print s
+  s = ''.join(s)
   rmdir(tmp)
   os.chdir(RUN_FROM_DIR)
   return fn
