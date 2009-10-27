@@ -129,6 +129,25 @@ class GUI(object):
         running_tasks_model.remove(i)
         gtk.gdk.threads_leave()
     T().start()
+
+    
+  def start_status(self):
+    icon = self.main_window.render_icon(gtk.STOCK_FIND, gtk.ICON_SIZE_MENU)
+    running_tasks_model = self.xml.get_widget('running_tasks').get_model()
+    i = running_tasks_model.append( ( icon, util.pango_escape('retrieving folder status since last backup...') ) )
+    import backup_status_gui
+    gui2 = backup_status_gui.GUI(self.register_gui, self.unregister_gui, self.uuid, self.host, self.path)
+    self.register_gui( gui2 )
+    gui = self
+    
+    class T(threading.Thread):
+      def run(self):
+        added, modified, deleted = backup.get_status( gui.uuid, gui.host, gui.path )
+        gtk.gdk.threads_enter()
+        gui2.set_files(added, modified, deleted)
+        running_tasks_model.remove(i)
+        gtk.gdk.threads_leave()
+    T().start()
     
 
 
@@ -154,6 +173,7 @@ class GUI(object):
     # toolbar
     self.xml.get_widget('toolbutton_backup').set_sensitive( backup.test_backup_assertions(self.uuid, self.host, self.path) )
     self.xml.get_widget('toolbutton_backup').connect('clicked', lambda x: self.start_backup() )
+    self.xml.get_widget('toolbutton_status').connect('clicked', lambda x: self.start_status() )
     self.xml.get_widget('toolbutton_export').connect('clicked', lambda x: self.start_export() )
     self.xml.get_widget('toolbutton_explore').connect('clicked', lambda x: self.start_explore() )
     self.xml.get_widget('toolbutton_preferences').connect('clicked', lambda x: self.open_preferences() )
@@ -189,8 +209,17 @@ class GUI(object):
     running_tasks_widget.append_column( gtk.TreeViewColumn('', renderer, markup=1) )
     running_tasks_widget.set_model(running_tasks_model)
     running_tasks_widget.set_headers_visible(False)
+    running_tasks_widget.set_property('rules-hint', True)
 
     self.main_window.show()
+    
+    # if no revisions exist, prompt user to run backup
+    if not backup.get_revisions(self.uuid, self.host, self.path):
+      s = 'Welcome to Flyback!'
+      md = gtk.MessageDialog(None, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_INFO, gtk.BUTTONS_CLOSE, s)
+      md.format_secondary_markup('This is a brand new (and currently empty) backup repository.  To fill it with data, please click the "backup" button in the upper-left corner.')
+      md.run()
+      md.destroy()
     
 
 

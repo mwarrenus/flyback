@@ -323,3 +323,42 @@ def export_revision(uuid, host, path, rev, target_path):
   os.chdir(RUN_FROM_DIR)
   return fn
 
+
+def get_status(uuid, host, path):
+  assert test_backup_assertions(uuid, host, path)
+  added = []
+  modified = []
+  deleted = []
+
+  os.chdir(path)
+  git_dir = get_git_dir(uuid, host, path)
+  git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="%s" git ' % (git_dir,path)
+  cmd = git_cmd + 'status'
+  print '$', cmd
+  f = os.popen(cmd)
+  rest_are_added = False
+  for line in f:
+    sys.stdout.write(line)
+    if not line.startswith('#'):
+      continue
+    if line.startswith('#	modified:'):
+      fn = line[ line.index(':')+1: ].strip()
+      modified.append(fn)
+    if line.startswith('#	deleted:'):
+      fn = line[ line.index(':')+1: ].strip()
+      deleted.append(fn)
+    if line.startswith('#   (use "git'):
+      if line.startswith('#   (use "git add'):
+        rest_are_added = True
+      else:
+        rest_are_added = False
+      continue
+    if rest_are_added:
+      fn = line.lstrip('#').strip()
+      if fn:
+        added.append(fn)
+  f.close()
+  os.chdir(RUN_FROM_DIR)
+
+  return added, modified, deleted
+

@@ -28,6 +28,41 @@
               </packing>
             </child>
             <child>
+              <widget class="GtkToolButton" id="toolbutton_status">
+                <property name="visible">True</property>
+                <property name="is_important">True</property>
+                <property name="label" translatable="yes">Status</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-info</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <widget class="GtkToolButton" id="toolbutton_preferences">
+                <property name="visible">True</property>
+                <property name="is_important">True</property>
+                <property name="label" translatable="yes">Preferences</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-preferences</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <widget class="GtkSeparatorToolItem" id="toolbutton2">
+                <property name="visible">True</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
               <widget class="GtkToolButton" id="toolbutton_export">
                 <property name="visible">True</property>
                 <property name="sensitive">False</property>
@@ -59,28 +94,6 @@
             </child>
             <child>
               <widget class="GtkSeparatorToolItem" id="toolbutton4">
-                <property name="visible">True</property>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkToolButton" id="toolbutton_preferences">
-                <property name="visible">True</property>
-                <property name="is_important">True</property>
-                <property name="label" translatable="yes">Preferences</property>
-                <property name="use_underline">True</property>
-                <property name="stock_id">gtk-preferences</property>
-              </widget>
-              <packing>
-                <property name="expand">False</property>
-                <property name="homogeneous">True</property>
-              </packing>
-            </child>
-            <child>
-              <widget class="GtkSeparatorToolItem" id="toolbutton6">
                 <property name="visible">True</property>
               </widget>
               <packing>

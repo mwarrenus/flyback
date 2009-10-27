@@ -30,8 +30,9 @@ class GUI(object):
       self.register_gui( manage_backup_gui.GUI(self.register_gui, self.unregister_gui, uuid, host, path) )
       self.close()
     else:
-      s = 'ERROR: No Drive Selected\n\nYou must select a drive from the list...'
+      s = 'No Drive Selected'
       md = gtk.MessageDialog(None, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_WARNING, gtk.BUTTONS_CLOSE, s)
+      md.format_secondary_markup('You must select a drive from the list...')
       md.run()
       md.destroy()
 
