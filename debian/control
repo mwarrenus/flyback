@@ -1,0 +1,13 @@
+Source: flyback
+Section: editors
+Priority: extra
+Maintainer: Derek Anderson <public@kered.org>
+Build-Depends: debhelper (>= 7)
+Standards-Version: 3.8.0
+Homepage: http://flyback.org/
+
+Package: flyback
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, python, python-glade2, python-gnome2, python-gnome2-extras, git
+Description: Flyback - Apple's Time Machine for Linux
+    Apple's Time Machine is a great feature in their OS, and Linux has almost all of the required technology already built in to recreate it. This is a simple GUI to make it easy to use. 
