@@ -46,6 +46,11 @@ class GUI(object):
     if not entry: return
     rev = entry and model.get_value(entry, 1)
     return rev
+    
+  def open_preferences(self):
+    import manage_backup_preferences_gui
+    self.register_gui( manage_backup_preferences_gui.GUI(self.register_gui, self.unregister_gui, self.uuid, self.host, self.path) )
+  
 
   def start_backup(self):
     icon = self.main_window.render_icon(gtk.STOCK_SAVE, gtk.ICON_SIZE_MENU)
@@ -133,6 +138,7 @@ class GUI(object):
     self.xml.get_widget('toolbutton_backup').connect('clicked', lambda x: self.start_backup() )
     self.xml.get_widget('toolbutton_export').connect('clicked', lambda x: self.start_export() )
     self.xml.get_widget('toolbutton_explore').connect('clicked', lambda x: self.start_explore() )
+    self.xml.get_widget('toolbutton_preferences').connect('clicked', lambda x: self.open_preferences() )
     
     # revision list
     treeview_revisions_model = gtk.ListStore( str, str )

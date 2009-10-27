@@ -69,7 +69,6 @@
             <child>
               <widget class="GtkToolButton" id="toolbutton_preferences">
                 <property name="visible">True</property>
-                <property name="sensitive">False</property>
                 <property name="is_important">True</property>
                 <property name="label" translatable="yes">Preferences</property>
                 <property name="use_underline">True</property>

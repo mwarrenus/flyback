@@ -1,4 +1,4 @@
-import os, pickle, sys, tempfile
+import os, pickle, sys, tempfile, traceback
 
 import settings
 
@@ -151,6 +151,10 @@ def init_backup(uuid, host, path):
   pickle.dump(o,f)
   f.close()
   
+  # save default preferences
+  preferences = get_preferences(uuid, host, path)
+  save_preferences(uuid, host, path, preferences)
+  
   rmdir(tmp)
   os.chdir(RUN_FROM_DIR)
   return
@@ -180,6 +184,58 @@ def backup(uuid, host, path):
   s = f.read()
   f.close()
   print s
+
+
+def get_preferences(uuid, host, path):
+  preferences = {
+    'exclude_audio': True,
+    'exclude_video': True,
+    'exclude_trash': True,
+    'exclude_cache': True,
+    'exclude_vms': True,
+    'exclude_iso': True,
+  }
+  git_dir = get_git_dir(uuid, host, path)
+  try:
+    f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'r' )
+    o = pickle.load(f)
+    f.close()
+    if o:
+      preferences.update(o)
+  except:
+    print traceback.print_exc()
+  return preferences
+
+
+def save_preferences(uuid, host, path, preferences):
+  git_dir = get_git_dir(uuid, host, path)
+  try:
+    f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'w' )
+    pickle.dump(preferences, f)
+    f.close()
+  except:
+    print traceback.print_exc()
+    
+  # gen exclude file
+  exclude_map = {
+    'exclude_audio': ['*.mp3','*.aac','*.wma'],
+    'exclude_video': ['*.mp4','*.avi','*.mpeg',],
+    'exclude_trash': ['Trash/','.Trash*/',],
+    'exclude_cache': ['Cache/','.cache/',],
+    'exclude_vms': ['*.vmdk',],
+    'exclude_iso': ['*.iso',],
+  }
+  try:
+    f = open( os.path.join(git_dir, 'info', 'exclude'), 'w' )
+    for k,v in exclude_map.iteritems():
+      if preferences.get(k):
+        for x in v:
+          f.write('%s\n' % x)
+          print 'excluding:', x
+    f.close()
+  except:
+    print traceback.print_exc()
+  
 
 
 def get_revisions(uuid, host, path):
