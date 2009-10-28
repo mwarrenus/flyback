@@ -196,14 +196,7 @@ def backup(uuid, host, path):
 
 
 def get_preferences(uuid, host, path):
-  preferences = {
-    'exclude_audio': True,
-    'exclude_video': True,
-    'exclude_trash': True,
-    'exclude_cache': True,
-    'exclude_vms': True,
-    'exclude_iso': True,
-  }
+  preferences = dict(settings.DEFAULT_PREFERENCES)
   git_dir = get_git_dir(uuid, host, path)
   try:
     f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'r' )
@@ -217,10 +210,14 @@ def get_preferences(uuid, host, path):
 
 
 def save_preferences(uuid, host, path, preferences):
+  preferences_diff = {}
+  for k,v in preferences.iteritems():
+    if settings.DEFAULT_PREFERENCES.get(k)!=v:
+      preferences_diff[k] = v
   git_dir = get_git_dir(uuid, host, path)
   try:
     f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'w' )
-    pickle.dump(preferences, f)
+    pickle.dump(preferences_diff, f)
     f.close()
   except:
     print traceback.print_exc()

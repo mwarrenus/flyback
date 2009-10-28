@@ -167,12 +167,13 @@ class GUI(object):
     icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)
     self.main_window.set_icon(icon)
     self.xml.get_widget('entry_drive_name').set_text( backup.get_drive_name(self.uuid) )
-    self.xml.get_widget('entry_path').set_text( self.path )
+    self.xml.get_widget('entry_path').set_text( self.host +':'+ self.path )
     self.main_window.set_title('%s v%s - Manage Backup' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION))
     
     # toolbar
     self.xml.get_widget('toolbutton_backup').set_sensitive( backup.test_backup_assertions(self.uuid, self.host, self.path) )
     self.xml.get_widget('toolbutton_backup').connect('clicked', lambda x: self.start_backup() )
+    self.xml.get_widget('toolbutton_status').set_sensitive( backup.test_backup_assertions(self.uuid, self.host, self.path) )
     self.xml.get_widget('toolbutton_status').connect('clicked', lambda x: self.start_status() )
     self.xml.get_widget('toolbutton_export').connect('clicked', lambda x: self.start_export() )
     self.xml.get_widget('toolbutton_explore').connect('clicked', lambda x: self.start_explore() )

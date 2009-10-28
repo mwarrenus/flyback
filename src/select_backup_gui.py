@@ -76,7 +76,8 @@ class GUI(object):
     treeview_backups_widget.connect( 'move-cursor', self.update_buttons )
     
     treeview_backups_model.clear()
-    for t in backup.get_known_backups():
+    known_backups = backup.get_known_backups()
+    for t in known_backups:
       paths = backup.get_dev_paths_for_uuid(t['uuid'])
       drive_name = 'UUID: '+ t['uuid']
       for path in paths:
@@ -96,7 +97,10 @@ class GUI(object):
         icon.saturate_and_pixelate(icon2, 0.0, False)
         icon = icon2
       treeview_backups_model.append( (icon, s, backup.is_dev_present(t['uuid']), t['uuid'], t['host'], t['path']) )
-    treeview_backups_model.append( (self.main_window.render_icon(gtk.STOCK_ADD, gtk.ICON_SIZE_DIALOG), '(create a new backup)', True, None, None, None) )
+    if known_backups:
+      treeview_backups_model.append( (self.main_window.render_icon(gtk.STOCK_ADD, gtk.ICON_SIZE_DIALOG), 'Double-click here to create a new backup...', True, None, None, None) )
+    else:
+      treeview_backups_model.append( (self.main_window.render_icon(gtk.STOCK_ADD, gtk.ICON_SIZE_DIALOG), 'No existing backups found.\nDouble-click here to create a new backup...', True, None, None, None) )
 
     self.main_window.show()
     

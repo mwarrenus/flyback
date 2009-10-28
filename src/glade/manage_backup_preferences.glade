@@ -90,6 +90,52 @@
                 <property name="position">5</property>
               </packing>
             </child>
+            <child>
+              <widget class="GtkHBox" id="hbox1">
+                <property name="visible">True</property>
+                <property name="spacing">4</property>
+                <child>
+                  <widget class="GtkCheckButton" id="checkbutton_exclude_filesize">
+                    <property name="label" translatable="yes">Exclude files over:</property>
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="receives_default">False</property>
+                    <property name="draw_indicator">True</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkSpinButton" id="spinbutton_exclude_filesize_value">
+                    <property name="visible">True</property>
+                    <property name="can_focus">True</property>
+                    <property name="invisible_char">&#x25CF;</property>
+                    <property name="adjustment">1 1 1024 1 16 16</property>
+                    <property name="snap_to_ticks">True</property>
+                    <property name="numeric">True</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">1</property>
+                  </packing>
+                </child>
+                <child>
+                  <widget class="GtkLabel" id="label1">
+                    <property name="visible">True</property>
+                    <property name="label" translatable="yes">GB</property>
+                  </widget>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="position">2</property>
+                  </packing>
+                </child>
+              </widget>
+              <packing>
+                <property name="position">6</property>
+              </packing>
+            </child>
           </widget>
           <packing>
             <property name="position">1</property>

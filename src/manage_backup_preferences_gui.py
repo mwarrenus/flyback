@@ -14,16 +14,22 @@ class GUI(object):
     self.unregister_gui(self)
   
   def save(self, a=None):
-    backup.save_preferences(self.uuid, self.host, self.path, self.preferences)
+    preferences = {
+      'exclude_audio': self.xml.get_widget('checkbutton_exclude_audio').get_active(),
+      'exclude_video': self.xml.get_widget('checkbutton_exclude_video').get_active(),
+      'exclude_trash': self.xml.get_widget('checkbutton_exclude_trash').get_active(),
+      'exclude_cache': self.xml.get_widget('checkbutton_exclude_cache').get_active(),
+      'exclude_vms': self.xml.get_widget('checkbutton_exclude_vms').get_active(),
+      'exclude_iso': self.xml.get_widget('checkbutton_exclude_iso').get_active(),
+    }
+    if self.xml.get_widget('checkbutton_exclude_filesize').get_active():
+      preferences['exclude_filesize'] = self.xml.get_widget('spinbutton_exclude_filesize_value').get_value()
+    else:
+      preferences['exclude_filesize'] = None
+    
+    backup.save_preferences(self.uuid, self.host, self.path, preferences)
     self.close()
     
-  def toggled(self, button):
-    name = button.get_name()
-    assert name.startswith('checkbutton_')
-    preference = name[ name.index('_')+1: ]
-    self.preferences[preference] = button.get_active()
-    print 'toggled:', preference, button.get_active()
-  
   def __init__(self, register_gui, unregister_gui, uuid, host, path):
 
     self.register_gui = register_gui
@@ -41,6 +47,7 @@ class GUI(object):
     self.main_window.set_title('%s v%s - Backup Preferences' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION))
     
     self.preferences = backup.get_preferences(self.uuid, self.host, self.path)
+    print self.preferences
 
     self.xml.get_widget('checkbutton_exclude_audio').set_active(self.preferences.get('exclude_audio'))
     self.xml.get_widget('checkbutton_exclude_video').set_active(self.preferences.get('exclude_video'))
@@ -48,14 +55,13 @@ class GUI(object):
     self.xml.get_widget('checkbutton_exclude_cache').set_active(self.preferences.get('exclude_cache'))
     self.xml.get_widget('checkbutton_exclude_vms').set_active(self.preferences.get('exclude_vms'))
     self.xml.get_widget('checkbutton_exclude_iso').set_active(self.preferences.get('exclude_iso'))
+    self.xml.get_widget('checkbutton_exclude_filesize').set_active(bool(self.preferences.get('exclude_filesize')))
+    if self.preferences.get('exclude_filesize'):
+      print 'woot'
+      self.xml.get_widget('spinbutton_exclude_filesize_value').set_value(self.preferences.get('exclude_filesize'))
+    else:
+      self.xml.get_widget('spinbutton_exclude_filesize_value').set_value(0)
 
-    self.xml.get_widget('checkbutton_exclude_audio').connect('toggled', self.toggled)
-    self.xml.get_widget('checkbutton_exclude_video').connect('toggled', self.toggled)
-    self.xml.get_widget('checkbutton_exclude_trash').connect('toggled', self.toggled)
-    self.xml.get_widget('checkbutton_exclude_cache').connect('toggled', self.toggled)
-    self.xml.get_widget('checkbutton_exclude_vms').connect('toggled', self.toggled)
-    self.xml.get_widget('checkbutton_exclude_iso').connect('toggled', self.toggled)
-    
     self.main_window.show()
     
 
