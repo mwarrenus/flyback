@@ -49,12 +49,14 @@ class GUI(object):
       for path in paths:
         if 'disk/by-id' in path:
           drive_name = path[path.index('disk/by-id')+11:]
-      s = "<b>Drive:</b> %s\n<b>Source:</b> <i>%s</i>:%s\n" % (util.pango_escape(drive_name), util.pango_escape(t['host']), util.pango_escape(t['path']))
+      free_space = util.humanize_bytes(backup.get_free_space(t['uuid']))
+      drive_name = backup.get_mount_point_for_uuid(t['uuid']) + ' (%s free)' % free_space
+      s = "<b>Drive:</b> %s\n<b>Source:</b> <i>%s</i>:%s\n" % (util.pango_escape(drive_name), util.pango_escape(t['host']), util.pango_escape(t['path']), )
       if backup.is_dev_present(t['uuid']) and backup.get_hostname()==t['host']:
-        s += "<b>Status:</b> Drive is available and ready for backups"
+        s += "<b>Status:</b> Drive is ready for backups"
       else:
         if backup.is_dev_present(t['uuid']) and backup.get_hostname()!=t['host']:
-          s += "<b>Status:</b> Backup was created on another computer (available for export only)"
+          s += "<b>Status:</b> Backup available for export only (was created on another computer)"
         else:
           s += "<b>Status:</b> Drive is unavailable (please attach)"
       icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)

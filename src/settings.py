@@ -1,5 +1,5 @@
 PROGRAM_NAME = 'Flyback'
-PROGRAM_VERSION = '0.5.1'
+PROGRAM_VERSION = '0.6.0'
 
 DEFAULT_PREFERENCES = {
   'exclude_audio': True,
