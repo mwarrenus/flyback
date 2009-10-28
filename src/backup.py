@@ -187,12 +187,17 @@ def backup(uuid, host, path):
   cmd = git_cmd + 'commit -v . -m "commited by: %s v%s"' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION)
   print '$', cmd
   f = os.popen(cmd)
-  s = []
   for line in f:
-    s.append(line)
     sys.stdout.write(line)
   f.close()
-  s = ''.join(s)
+
+  # repack
+  cmd = git_cmd + 'repack -A -d --max-pack-size=1024'
+  print '$', cmd
+  f = os.popen(cmd)
+  for line in f:
+    sys.stdout.write(line)
+  f.close()
 
 
 def get_preferences(uuid, host, path):
@@ -293,7 +298,6 @@ def get_files_for_revision(uuid, host, path, rev):
   s = []
   for line in f:
     s.append(line)
-    sys.stdout.write(line)
   f.close()
   s = ''.join(s)
   rmdir(tmp)

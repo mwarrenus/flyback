@@ -43,7 +43,7 @@
             </child>
             <child>
               <widget class="GtkCheckButton" id="checkbutton_exclude_trash">
-                <property name="label" translatable="yes">Exclude "Trash" folders</property>
+                <property name="label" translatable="yes">Exclude "trash" folders</property>
                 <property name="visible">True</property>
                 <property name="can_focus">True</property>
                 <property name="receives_default">False</property>
@@ -100,6 +100,7 @@
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
                     <property name="receives_default">False</property>
+                    <property name="tooltip" translatable="yes">Flyback uses "git" as it's backend database, however git fails when trying to archive files that can't fit into main memory.  Thus this option exists, until large file support is added to git.</property>
                     <property name="draw_indicator">True</property>
                   </widget>
                   <packing>

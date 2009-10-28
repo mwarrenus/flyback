@@ -57,7 +57,6 @@ class GUI(object):
     self.xml.get_widget('checkbutton_exclude_iso').set_active(self.preferences.get('exclude_iso'))
     self.xml.get_widget('checkbutton_exclude_filesize').set_active(bool(self.preferences.get('exclude_filesize')))
     if self.preferences.get('exclude_filesize'):
-      print 'woot'
       self.xml.get_widget('spinbutton_exclude_filesize_value').set_value(self.preferences.get('exclude_filesize'))
     else:
       self.xml.get_widget('spinbutton_exclude_filesize_value').set_value(0)
