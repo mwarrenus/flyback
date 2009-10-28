@@ -7,9 +7,6 @@ import settings
 import util
 
   
-RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
-
-  
 def echo(*args):
   print 'echo', args
 
@@ -76,7 +73,7 @@ class GUI(object):
     self.register_gui = register_gui
     self.unregister_gui = unregister_gui
   
-    self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'glade', 'select_backup.glade' ) )
+    self.xml = gtk.glade.XML( os.path.join( util.RUN_FROM_DIR, 'glade', 'select_backup.glade' ) )
     self.main_window = self.xml.get_widget('select_backup_gui')
     self.main_window.connect("delete-event", self.close )
     icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)

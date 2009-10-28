@@ -4,8 +4,6 @@ import backup
 import settings
 import util
 
-RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
-
 
 class GUI(object):
 
@@ -38,7 +36,7 @@ class GUI(object):
     self.host = host
     self.path = path
   
-    self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'glade', 'manage_backup_preferences.glade' ) )
+    self.xml = gtk.glade.XML( os.path.join( util.RUN_FROM_DIR, 'glade', 'manage_backup_preferences.glade' ) )
     self.main_window = self.xml.get_widget('dialog')
     self.xml.get_widget('button_cancel').connect('clicked', self.close)
     self.xml.get_widget('button_ok').connect('clicked', self.save)

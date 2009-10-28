@@ -5,10 +5,8 @@ import manage_backup_gui
 import settings
 import util
 
-  
-RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
+print util.RUN_FROM_DIR
 
-  
 def echo(*args):
   print 'echo', args
 
@@ -47,11 +45,11 @@ class GUI(object):
       treeview_backups_model.append( (icon, s, backup.is_dev_present(uuid), uuid) )
 
   def __init__(self, register_gui, unregister_gui):
+    print util.RUN_FROM_DIR
 
     self.register_gui = register_gui
     self.unregister_gui = unregister_gui
-  
-    self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'glade', 'create_backup.glade' ) )
+    self.xml = gtk.glade.XML( os.path.join( util.RUN_FROM_DIR, 'glade', 'create_backup.glade' ) )
     self.main_window = self.xml.get_widget('window')
     self.main_window.connect("delete-event", self.close )
     icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)

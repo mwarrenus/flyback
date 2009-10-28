@@ -3,8 +3,6 @@ import gnome, gobject, gtk, gtk.glade, os, sys, tempfile, threading
 import settings
 import util
 
-RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
-
 
 class GUI(object):
 
@@ -35,7 +33,7 @@ class GUI(object):
     self.host = host
     self.path = path
     
-    self.xml = gtk.glade.XML( os.path.join( RUN_FROM_DIR, 'glade', 'backup_status.glade' ) )
+    self.xml = gtk.glade.XML( os.path.join( util.RUN_FROM_DIR, 'glade', 'backup_status.glade' ) )
     self.main_window = self.xml.get_widget('dialog')
     icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_BUTTON)
     self.main_window.set_icon(icon)

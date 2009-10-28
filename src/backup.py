@@ -1,8 +1,7 @@
 import os, pickle, sys, tempfile, traceback
 
 import settings
-
-RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
+import util
 
 
 def get_known_backups():
@@ -159,7 +158,7 @@ def init_backup(uuid, host, path):
   save_preferences(uuid, host, path, preferences)
   
   rmdir(tmp)
-  os.chdir(RUN_FROM_DIR)
+  os.chdir(util.RUN_FROM_DIR)
   return
   
 
@@ -282,7 +281,7 @@ def get_revisions(uuid, host, path):
       log.append(entry)
 
   rmdir(tmp)
-  os.chdir(RUN_FROM_DIR)
+  os.chdir(util.RUN_FROM_DIR)
   print 'log', log
   return log
 
@@ -301,7 +300,7 @@ def get_files_for_revision(uuid, host, path, rev):
   f.close()
   s = ''.join(s)
   rmdir(tmp)
-  os.chdir(RUN_FROM_DIR)
+  os.chdir(util.RUN_FROM_DIR)
   return [ x.strip('"') for x in s.split('\n') ]
 
 
@@ -321,7 +320,7 @@ def export_revision(uuid, host, path, rev, target_path):
   f.close()
   s = ''.join(s)
   rmdir(tmp)
-  os.chdir(RUN_FROM_DIR)
+  os.chdir(util.RUN_FROM_DIR)
   return fn
 
 
@@ -359,7 +358,7 @@ def get_status(uuid, host, path):
       if fn:
         added.append(fn)
   f.close()
-  os.chdir(RUN_FROM_DIR)
+  os.chdir(util.RUN_FROM_DIR)
 
   return added, modified, deleted
 
