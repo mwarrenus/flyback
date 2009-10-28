@@ -106,7 +106,7 @@ class GUI(object):
     dialog.destroy()
 
   def start_explore(self):
-    target_dir = tmp = tempfile.mkdtemp()
+    target_dir = tmp = tempfile.mkdtemp(suffix='_flyback')
     rev = self.get_selected_revision()
     
     icon = self.main_window.render_icon(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU)

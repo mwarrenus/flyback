@@ -128,7 +128,7 @@ def rmdir(tmp):
 def init_backup(uuid, host, path):
   assert test_backup_assertions(uuid, host, path)
 
-  tmp = tempfile.mkdtemp()
+  tmp = tempfile.mkdtemp(suffix='_flyback')
   os.chdir(tmp)
   git_dir = get_git_dir(uuid, host, path)
   print 'initializing repository...', git_dir
@@ -249,7 +249,7 @@ def save_preferences(uuid, host, path, preferences):
 
 
 def get_revisions(uuid, host, path):
-  tmp = tempfile.mkdtemp()
+  tmp = tempfile.mkdtemp(suffix='_flyback')
   os.chdir(tmp)
   git_dir = get_git_dir(uuid, host, path)
   git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="%s" git ' % (git_dir,tmp)
@@ -287,7 +287,7 @@ def get_revisions(uuid, host, path):
 
 
 def get_files_for_revision(uuid, host, path, rev):
-  tmp = tempfile.mkdtemp()
+  tmp = tempfile.mkdtemp(suffix='_flyback')
   os.chdir(tmp)
   git_dir = get_git_dir(uuid, host, path)
   git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="%s" git ' % (git_dir,tmp)
@@ -305,7 +305,7 @@ def get_files_for_revision(uuid, host, path, rev):
 
 
 def export_revision(uuid, host, path, rev, target_path):
-  tmp = tempfile.mkdtemp()
+  tmp = tempfile.mkdtemp(suffix='_flyback')
   os.chdir(tmp)
   git_dir = get_git_dir(uuid, host, path)
   git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="%s" git ' % (git_dir,tmp)
