@@ -1,6 +1,7 @@
 set -x
-VERSION="0.5.1"
+VERSION="`python src/settings.py`"
 VERSION="${VERSION}_r`svnversion .`"
+echo $VERSION
 cd debs
 mkdir flyback
 cp ../src/* flyback
