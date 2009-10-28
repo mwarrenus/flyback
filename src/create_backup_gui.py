@@ -36,6 +36,15 @@ class GUI(object):
       md.run()
       md.destroy()
 
+  def refresh_device_list(self):
+    treeview_backups_model = self.xml.get_widget('treeview_backups').get_model()
+    treeview_backups_model.clear()
+    for uuid in backup.get_writable_devices():
+      path = backup.get_mount_point_for_uuid(uuid)
+      icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
+      free_space = util.humanize_bytes(backup.get_free_space(uuid))
+      s = "<b>Drive:</b> %s\n<b>Mount Point:</b> %s\n<b>Free Space:</b> %s" % (util.pango_escape(uuid), util.pango_escape(path), util.pango_escape(free_space))
+      treeview_backups_model.append( (icon, s, backup.is_dev_present(uuid), uuid) )
 
   def __init__(self, register_gui, unregister_gui):
 
@@ -66,17 +75,9 @@ class GUI(object):
     treeview_backups_widget.append_column( gtk.TreeViewColumn('', renderer, markup=1) )
     treeview_backups_widget.set_headers_visible(False)
     treeview_backups_widget.set_model(treeview_backups_model)
+    util.register_device_added_removed_callback(self.refresh_device_list)
+    self.refresh_device_list()
     
-    treeview_backups_model.clear()
-    for uuid in backup.get_writable_devices():
-      path = backup.get_mount_point_for_uuid(uuid)
-      icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
-      free_space = util.humanize_bytes(backup.get_free_space(uuid))
-      s = "<b>Drive:</b> %s\n<b>Mount Point:</b> %s\n<b>Free Space:</b> %s" % (util.pango_escape(uuid), util.pango_escape(path), util.pango_escape(free_space))
-      treeview_backups_model.append( (icon, s, backup.is_dev_present(uuid), uuid) )
-      
-      
-
     self.main_window.show()
     
 
