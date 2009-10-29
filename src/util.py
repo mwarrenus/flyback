@@ -19,6 +19,8 @@ def open_file(fn):
   
   
 def humanize_bytes(bytes):
+  if bytes < 0:
+    return 'unknown'
   if bytes < 1024:
     return '%dB' % bytes
   if bytes < 1024*1024:
