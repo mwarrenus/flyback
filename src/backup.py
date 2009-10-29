@@ -1,12 +1,14 @@
 import os, pickle, sys, tempfile, traceback
+import uuid as uuidlib
 
 import settings
 import util
 
+UUID_GVFS = uuidlib.uuid5(uuidlib.NAMESPACE_DNS, 'gvfs.flyback.org')
 
 def get_known_backups():
   backups = []
-  for uuid in get_devices():
+  for uuid in get_all_devices():
     print 'uuid', uuid
     path = get_mount_point_for_uuid(uuid)
     if path:
@@ -22,27 +24,54 @@ def get_known_backups():
           print 'failed to read:', os.path.join(path, fbdb, 'flyback_properties.pickle')
   return backups
 
-  return [
-    { 'uuid':'46D7-429E', 'host':'newyork', 'path':'/home/derek/testfb' },
-    { 'uuid':'46D7-429E', 'host':'malcolm', 'path':'/home/derek/testfb' },
-    { 'uuid':'46D7-429E', 'host':'kaylee', 'path':'/home/derek/testfb' },
-    { 'uuid':'46D7-XXXX', 'host':'kaylee', 'path':'/home/derek/testfb' },
-  ]
-
   
 def is_dev_present(uuid):
+  # handle gfvs
+  for x,y in get_gvfs_devices_and_paths():
+    if uuid==x:
+      return True
+  # handle local devices
   return os.path.exists( os.path.join( '/dev/disk/by-uuid/', uuid ) )
+  
+def get_device_type(uuid):
+  # handle gfvs
+  for x,y in get_gvfs_devices_and_paths():
+    if uuid==x:
+      return 'gvfs'
+  # handle local devices
+  if os.path.exists( os.path.join( '/dev/disk/by-uuid/', uuid ) ):
+    return 'local'
+  return None
   
 def get_hostname():
   import socket
   return socket.gethostname()
   
-def get_devices():
-  return [ os.path.basename(x) for x in os.listdir('/dev/disk/by-uuid/') ]
+def get_gvfs_devices():
+  return [ x[0] for x in get_gvfs_devices_and_paths() ]
+  
+def get_gvfs_devices_and_paths():
+  l = []
+  gvfs_dir = os.path.join( os.path.expanduser('~'), '.gvfs')
+  print 'gvfs_dir', gvfs_dir
+  for x in os.listdir(gvfs_dir):
+    mount_point = os.path.join( gvfs_dir, x )
+    print 'mount_point', mount_point
+    uuid = str(uuidlib.uuid5(UUID_GVFS, mount_point))
+    print 'uuid', uuid
+    l.append( (uuid, mount_point) )
+  return l
+  
+def get_local_devices():
+  devices = [ os.path.basename(x) for x in os.listdir('/dev/disk/by-uuid/') ]
+  return devices
+  
+def get_all_devices():
+  return get_local_devices() + get_gvfs_devices()
   
 def get_writable_devices():
   writable_uuids = []
-  for uuid in get_devices():
+  for uuid in get_all_devices():
     path = get_mount_point_for_uuid(uuid)
     if path:
       try:
@@ -57,7 +86,16 @@ def get_writable_devices():
   return writable_uuids
   
 def test_backup_assertions(uuid, host, path):
-  return is_dev_present(uuid) and get_hostname()==host and os.path.exists(path)
+  if not is_dev_present(uuid): 
+    print 'not is_dev_present("%s")' % uuid
+    return False
+  if not get_hostname()==host:
+    print 'get_hostname()!="%s"' % host
+    return False
+  if not os.path.exists(path):
+    print 'not os.path.exists("%s")' % path
+    return False
+  return True
 
 def get_dev_paths_for_uuid(uuid):
   dev_path = os.path.join( '/dev/disk/by-uuid/', uuid )
@@ -74,6 +112,11 @@ def get_dev_paths_for_uuid(uuid):
   return dev_paths
 
 def get_mount_point_for_uuid(uuid):
+  # handle gfvs
+  for x,y in get_gvfs_devices_and_paths():
+    if uuid==x:
+      return y
+  # handle local devices
   dev_paths = get_dev_paths_for_uuid(uuid)
   f = os.popen('mount')
   s = f.read()
@@ -96,13 +139,15 @@ def get_drive_name(uuid):
 
 def get_free_space(uuid):
   path = get_mount_point_for_uuid(uuid)
-  f = os.popen('df')
+  cmd = 'df "%s"' % path
+  print '$', cmd
+  f = os.popen(cmd)
   s = f.read()
   f.close()
-  for line in s.split('\n'):
-    x = line.split()
-    if x[-1]==path:
-      return int(x[-3])*1024
+  line = s.split('\n')[1]
+  x = line.strip().split()
+  print x
+  return int(x[-3])*1024
       
 def get_git_db_name(uuid, host, path):
   import hashlib

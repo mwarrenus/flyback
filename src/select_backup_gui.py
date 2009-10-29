@@ -74,6 +74,7 @@ class GUI(object):
     treeview_backups_model.clear()
     known_backups = backup.get_known_backups()
     for t in known_backups:
+      uuid = t['uuid']
       paths = backup.get_dev_paths_for_uuid(t['uuid'])
       drive_name = 'UUID: '+ t['uuid']
       for path in paths:
@@ -89,11 +90,12 @@ class GUI(object):
           s += "<b>Status:</b> Backup available for export only (was created on another computer)"
         else:
           s += "<b>Status:</b> Drive is unavailable (please attach)"
-      icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
-      if not backup.is_dev_present(t['uuid']):
-        icon2 = icon.copy()
-        icon.saturate_and_pixelate(icon2, 0.0, False)
-        icon = icon2
+      if backup.get_device_type(uuid)=='gvfs':
+        icon = self.main_window.render_icon(gtk.STOCK_NETWORK, gtk.ICON_SIZE_DIALOG)
+      elif backup.get_device_type(uuid)=='local':
+        icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
+      else:
+        icon = self.main_window.render_icon(gtk.STOCK_DIALOG_QUESTION, gtk.ICON_SIZE_DIALOG)
       treeview_backups_model.append( (icon, s, backup.is_dev_present(t['uuid']), t['uuid'], t['host'], t['path']) )
     if known_backups:
       treeview_backups_model.append( (self.main_window.render_icon(gtk.STOCK_ADD, gtk.ICON_SIZE_DIALOG), 'Double-click here to create a new backup...', True, None, None, None) )

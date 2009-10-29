@@ -40,7 +40,12 @@ class GUI(object):
     writable_devices = backup.get_writable_devices()
     for uuid in writable_devices:
       path = backup.get_mount_point_for_uuid(uuid)
-      icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
+      if backup.get_device_type(uuid)=='gvfs':
+        icon = self.main_window.render_icon(gtk.STOCK_NETWORK, gtk.ICON_SIZE_DIALOG)
+      elif backup.get_device_type(uuid)=='local':
+        icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
+      else:
+        icon = self.main_window.render_icon(gtk.STOCK_DIALOG_QUESTION, gtk.ICON_SIZE_DIALOG)
       free_space = util.humanize_bytes(backup.get_free_space(uuid))
       s = "<b>Drive:</b> %s\n<b>Mount Point:</b> %s\n<b>Free Space:</b> %s" % (util.pango_escape(uuid), util.pango_escape(path), util.pango_escape(free_space))
       treeview_backups_model.append( (icon, s, backup.is_dev_present(uuid), uuid) )
