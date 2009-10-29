@@ -191,7 +191,7 @@ def backup(uuid, host, path):
   f.close()
 
   # repack
-  cmd = git_cmd + 'repack -A -d --max-pack-size=1024'
+  cmd = git_cmd + 'repack -A -d --max-pack-size=2000'
   print '$', cmd
   f = os.popen(cmd)
   for line in f:
