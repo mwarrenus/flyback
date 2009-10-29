@@ -37,12 +37,20 @@ class GUI(object):
   def refresh_device_list(self):
     treeview_backups_model = self.xml.get_widget('treeview_backups').get_model()
     treeview_backups_model.clear()
-    for uuid in backup.get_writable_devices():
+    writable_devices = backup.get_writable_devices()
+    for uuid in writable_devices:
       path = backup.get_mount_point_for_uuid(uuid)
       icon = self.main_window.render_icon(gtk.STOCK_HARDDISK, gtk.ICON_SIZE_DIALOG)
       free_space = util.humanize_bytes(backup.get_free_space(uuid))
       s = "<b>Drive:</b> %s\n<b>Mount Point:</b> %s\n<b>Free Space:</b> %s" % (util.pango_escape(uuid), util.pango_escape(path), util.pango_escape(free_space))
       treeview_backups_model.append( (icon, s, backup.is_dev_present(uuid), uuid) )
+    if not writable_devices:
+      icon = self.main_window.render_icon(gtk.STOCK_INFO, gtk.ICON_SIZE_DIALOG)
+      s = 'In order to create a backup, Flyback needs a hard drive\nother than the one your computer boots from.\n(preferably external and removable)  Please plug one\ninto a free USB or eSATA port...'
+      treeview_backups_model.append( (icon, s, False, None) )
+      self.xml.get_widget('button_new').set_sensitive(False)
+    else:
+      self.xml.get_widget('button_new').set_sensitive(True)
 
   def __init__(self, register_gui, unregister_gui):
     print util.RUN_FROM_DIR
