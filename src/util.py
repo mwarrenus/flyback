@@ -30,7 +30,18 @@ def humanize_bytes(bytes):
   if bytes < 1024*1024*1024*1024:
     return '%.1fGB' % (bytes/1024/1024/1024)
   return '%.1fTB' % (bytes/1024/1024/1024/1024)
-    
+
+
+def humanize_time(td):
+  seconds = int(td.seconds)
+  if seconds < 60:
+    return '%is' % seconds
+  if seconds < 60*60:
+    return '%im %is' % (seconds//60, seconds%60)
+  if seconds < 60*60*24:
+    return '%ih %.1fm' % (seconds//60//60, seconds/60)
+  return '%id %.1fh' % (seconds//60//60//24, seconds/60/60)
+  
 
 class DeviceMonitorThread(threading.Thread):
   def run(self):

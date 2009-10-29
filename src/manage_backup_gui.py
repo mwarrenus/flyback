@@ -1,4 +1,4 @@
-import gnome, gobject, gtk, gtk.glade, os, sys, tempfile, threading
+import datetime, gnome, gobject, gtk, gtk.glade, os, sys, tempfile, threading, time
 
 import backup
 import settings
@@ -38,7 +38,7 @@ class GUI(object):
     
     icon = self.main_window.render_icon(gtk.STOCK_FIND, gtk.ICON_SIZE_MENU)
     running_tasks_model = self.xml.get_widget('running_tasks').get_model()
-    i = running_tasks_model.append( ( icon, util.pango_escape('loading files for rev: '+self.path) ) )
+    i = running_tasks_model.append( ( icon, util.pango_escape('loading files for rev: '+self.path), datetime.datetime.now(), '' ) )
     gui = self
     
     class T(threading.Thread):
@@ -68,7 +68,7 @@ class GUI(object):
   def start_backup(self):
     icon = self.main_window.render_icon(gtk.STOCK_SAVE, gtk.ICON_SIZE_MENU)
     running_tasks_model = self.xml.get_widget('running_tasks').get_model()
-    i = running_tasks_model.append( ( icon, util.pango_escape('backing up: '+self.path) ) )
+    i = running_tasks_model.append( ( icon, util.pango_escape('backing up: '+self.path), datetime.datetime.now(), '' ) )
     gui = self
     
     class T(threading.Thread):
@@ -90,7 +90,7 @@ class GUI(object):
 
       icon = self.main_window.render_icon(gtk.STOCK_FLOPPY, gtk.ICON_SIZE_MENU)
       running_tasks_model = self.xml.get_widget('running_tasks').get_model()
-      i = running_tasks_model.append( ( icon, util.pango_escape('exporting selected revision to: '+target_dir) ) )
+      i = running_tasks_model.append( ( icon, util.pango_escape('exporting selected revision to: '+target_dir), datetime.datetime.now(), '' ) )
       gui = self
       class T(threading.Thread):
         def run(self):
@@ -111,7 +111,7 @@ class GUI(object):
     
     icon = self.main_window.render_icon(gtk.STOCK_DIRECTORY, gtk.ICON_SIZE_MENU)
     running_tasks_model = self.xml.get_widget('running_tasks').get_model()
-    i = running_tasks_model.append( ( icon, util.pango_escape('preparing folder for exploration: '+target_dir) ) )
+    i = running_tasks_model.append( ( icon, util.pango_escape('preparing folder for exploration: '+target_dir), datetime.datetime.now(), '' ) )
     gui = self
     
     class T(threading.Thread):
@@ -131,7 +131,7 @@ class GUI(object):
   def start_status(self):
     icon = self.main_window.render_icon(gtk.STOCK_FIND, gtk.ICON_SIZE_MENU)
     running_tasks_model = self.xml.get_widget('running_tasks').get_model()
-    i = running_tasks_model.append( ( icon, util.pango_escape('retrieving folder status since last backup...') ) )
+    i = running_tasks_model.append( ( icon, util.pango_escape('retrieving folder status since last backup...'), datetime.datetime.now(), '' ) )
     import backup_status_gui
     gui2 = backup_status_gui.GUI(self.register_gui, self.unregister_gui, self.uuid, self.host, self.path)
     self.register_gui( gui2 )
@@ -198,16 +198,31 @@ class GUI(object):
 
     # task list
     running_tasks_widget = self.xml.get_widget('running_tasks')
-    running_tasks_model = gtk.ListStore( gtk.gdk.Pixbuf, str )
+    running_tasks_model = gtk.ListStore( gtk.gdk.Pixbuf, str, gobject.TYPE_PYOBJECT, str )
     renderer = gtk.CellRendererPixbuf()
     renderer.set_property('xpad', 4)
     renderer.set_property('ypad', 4)
     running_tasks_widget.append_column( gtk.TreeViewColumn('', renderer, pixbuf=0) )
     renderer = gtk.CellRendererText()
     running_tasks_widget.append_column( gtk.TreeViewColumn('', renderer, markup=1) )
+    renderer = gtk.CellRendererText()
+    running_tasks_widget.append_column( gtk.TreeViewColumn('', renderer, markup=3) )
     running_tasks_widget.set_model(running_tasks_model)
     running_tasks_widget.set_headers_visible(False)
     running_tasks_widget.set_property('rules-hint', True)
+    class T(threading.Thread):
+      def run(self):
+        while True:
+          tasks_running = False
+          gtk.gdk.threads_enter()
+          for x in running_tasks_model:
+            x[3] = util.humanize_time( datetime.datetime.now() - x[2] )
+          gtk.gdk.threads_leave()
+          if tasks_running: time.sleep(1)
+          else: time.sleep(10)
+    running_tasks_thread = T()
+    running_tasks_thread.daemon = True
+    running_tasks_thread.start()
 
     self.main_window.show()
     
