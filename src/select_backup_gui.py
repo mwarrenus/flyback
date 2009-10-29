@@ -1,4 +1,4 @@
-import gnome, gobject, gtk, gtk.glade, os, sys
+import gnome, gobject, gtk, gtk.glade, os, sys, threading
 
 import backup
 import create_backup_gui
@@ -31,13 +31,43 @@ class GUI(object):
         self.register_gui( create_backup_gui.GUI(self.register_gui, self.unregister_gui) )
       self.close()
 
+  def delete_backup(self,a=None,b=None,c=None):
+    treeview_backups_widget = self.xml.get_widget('treeview_backups')
+    model, entry = treeview_backups_widget.get_selection().get_selected()
+    if entry and model.get_value(entry, 2):
+      uuid = model.get_value(entry, 3)
+      host = model.get_value(entry, 4)
+      path = model.get_value(entry, 5)
+      if uuid and host and path:
+        title = 'Delete Backup?'
+        s = "Permanently delete the following backup repository?\n"
+        s += "<b>Drive:</b> %s:%s\n<b>Source:</b> <i>%s</i>:%s\n" % (util.pango_escape(uuid), util.pango_escape(backup.get_mount_point_for_uuid(uuid)), util.pango_escape(host), util.pango_escape(path), )
+        s += '\n<b>This action cannot be undone!</b>'
+        md = gtk.MessageDialog(None, gtk.DIALOG_DESTROY_WITH_PARENT, gtk.MESSAGE_WARNING, gtk.BUTTONS_YES_NO, util.pango_escape(title))
+        md.format_secondary_markup(s)
+        if gtk.RESPONSE_YES==md.run():
+          print 'deleting',uuid,host,path
+
+          gui = self
+          class T(threading.Thread):
+            def run(self):
+              backup.delete_backup(uuid, host, path)
+              gtk.gdk.threads_enter()
+              gui.refresh_device_list()
+              gtk.gdk.threads_leave()
+          T().start()
+
+        md.destroy()
+
   def update_buttons(self,a=None):
     model, entry = a.get_selection().get_selected()
     available = entry and model.get_value(entry, 2)
     if available:
       self.xml.get_widget('button_open').set_sensitive(True)
+      self.xml.get_widget('button_delete').set_sensitive(True)
     else:
       self.xml.get_widget('button_open').set_sensitive(False)
+      self.xml.get_widget('button_delete').set_sensitive(False)
 
   def refresh_device_list(self):
     treeview_backups_model = self.xml.get_widget('treeview_backups').get_model()
@@ -85,6 +115,7 @@ class GUI(object):
     # buttons
     self.xml.get_widget('button_cancel').connect('clicked', self.close)
     self.xml.get_widget('button_open').connect('clicked', self.open_backup)
+    self.xml.get_widget('button_delete').connect('clicked', self.delete_backup)
     
     # setup list
     treeview_backups_model = gtk.ListStore( gtk.gdk.Pixbuf, str, bool, str, str, str )

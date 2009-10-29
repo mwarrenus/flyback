@@ -362,3 +362,14 @@ def get_status(uuid, host, path):
 
   return added, modified, deleted
 
+
+def delete_backup(uuid, host, path):
+  git_dir = get_git_dir(uuid, host, path)
+  cmd = 'rm -Rf "%s"' % git_dir
+  print '$', cmd
+  f = os.popen(cmd)
+  for line in f:
+    sys.stdout.write(line)
+  f.close()
+  
+
