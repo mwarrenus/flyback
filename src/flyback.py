@@ -1,6 +1,8 @@
 #!/usr/bin/python
-import os, sys
+import os, sys, traceback
+
 import settings
+import backup
 
 
 GUIS = set()
@@ -16,7 +18,25 @@ def unregister_gui(gui):
     gtk.main_quit()
 
 def run_all_backups():
-  pass
+  for t in backup.get_known_backups():
+    uuid = t['uuid']
+    host = t['host']
+    path = t['path']
+    if backup.test_backup_assertions(uuid, host, path):
+      print '---=== starting backup:', uuid, path, '===---'
+      try: backup.backup(uuid, host, path)
+      except: traceback.print_exc()
+    else:
+      print '---=== skipped backup:', uuid, path, '===---'
+  
+def run_backup(uuid, path):
+  host = backup.get_hostname()
+  if backup.test_backup_assertions(uuid, host, path):
+    print '---=== starting backup:', uuid, path, '===---'
+    try: backup.backup(uuid, host, path)
+    except: traceback.print_exc()
+  else:
+    print '---=== skipped backup:', uuid, path, '===---'
   
 def launch_select_backup_gui():
   import select_backup_gui
@@ -27,10 +47,23 @@ if __name__=='__main__':
   args = sys.argv[1:]
   
   if len(args):
-    if args[0] in ('-b','--backup'):
+    print
+    print "------------------------------------------"
+    print " FlyBack - Apple's Time Machine for Linux"
+    print "------------------------------------------"
+    print
+    if args[0] in ('-b','--backup-all'):
       run_all_backups()
+    elif len(args)==2:
+      run_backup(args[0], args[1])
     else:
-      print 'usage: python flyback.py [--backup]'
+      print ' to launch the graphical interface:'
+      print ' $ python flyback.py'
+      print ' to backup all detected repositories:'
+      print ' $ python flyback.py [-b|--backup-all]'
+      print ' to backup a specific repository:'
+      print ' $ python flyback.py <drive_uuid> <path>'
+      print
   else:
     import gobject, gnome, gtk
     gnome.init( settings.PROGRAM_NAME, settings.PROGRAM_VERSION )

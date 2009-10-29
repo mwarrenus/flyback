@@ -9,10 +9,8 @@ UUID_GVFS = uuidlib.uuid5(uuidlib.NAMESPACE_DNS, 'gvfs.flyback.org')
 def get_known_backups():
   backups = []
   for uuid in get_all_devices():
-    print 'uuid', uuid
     path = get_mount_point_for_uuid(uuid)
     if path:
-      print 'path', path
       fbdbs = [ x for x in os.listdir(path) if x.startswith('.flybackdb') ]
       for fbdb in fbdbs:
         try:
@@ -20,6 +18,7 @@ def get_known_backups():
           o = pickle.load(f)
           f.close()
           backups.append(o)
+          print 'discovered backup:', uuid, path
         except:
           print 'failed to read:', os.path.join(path, fbdb, 'flyback_properties.pickle')
   return backups
@@ -53,12 +52,9 @@ def get_gvfs_devices():
 def get_gvfs_devices_and_paths():
   l = []
   gvfs_dir = os.path.join( os.path.expanduser('~'), '.gvfs')
-  print 'gvfs_dir', gvfs_dir
   for x in os.listdir(gvfs_dir):
     mount_point = os.path.join( gvfs_dir, x )
-    print 'mount_point', mount_point
     uuid = str(uuidlib.uuid5(UUID_GVFS, mount_point))
-    print 'uuid', uuid
     l.append( (uuid, mount_point) )
   return l
   
@@ -85,7 +81,7 @@ def get_writable_devices():
         print 'could not write to:', path
   return writable_uuids
   
-def test_backup_assertions(uuid, host, path):
+def test_backup_assertions(uuid, host, path, test_exists=True):
   if not is_dev_present(uuid): 
     print 'not is_dev_present("%s")' % uuid
     return False
@@ -95,6 +91,10 @@ def test_backup_assertions(uuid, host, path):
   if not os.path.exists(path):
     print 'not os.path.exists("%s")' % path
     return False
+  if test_exists:
+    if not os.path.exists( get_git_dir(uuid, host, path) ):
+      print 'not os.path.exists("%s")' % get_git_dir(uuid, host, path)
+      return False
   return True
 
 def get_dev_paths_for_uuid(uuid):
@@ -172,7 +172,7 @@ def rmdir(tmp):
 
 
 def init_backup(uuid, host, path):
-  assert test_backup_assertions(uuid, host, path)
+  assert test_backup_assertions(uuid, host, path, test_exists=False)
 
   tmp = tempfile.mkdtemp(suffix='_flyback')
   os.chdir(tmp)
