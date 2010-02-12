@@ -122,11 +122,11 @@ def get_mount_point_for_uuid(uuid):
   s = f.read()
   f.close()
   for line in s.split('\n'):
-    x = line.strip().split()
+    x = line.strip().split(' ')
     if x:
       dev_path = x[0]
       if dev_path in dev_paths:
-        mount_path = x[2]
+        mount_path = ' '.join(x[2:x.index('type')])
         return mount_path
       
 def get_drive_name(uuid):
@@ -148,7 +148,7 @@ def get_free_space(uuid):
   x = line.strip().split()
   print x
   if int(x[1])==0: return -1 # unknown amount of space
-  return int(x[-3])*1024
+  return int(x[3])*1024
       
 def get_git_db_name(uuid, host, path):
   import hashlib
