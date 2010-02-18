@@ -1,4 +1,4 @@
-import os, pickle, sys, tempfile, traceback
+import datetime, os, pickle, sys, tempfile, traceback
 import uuid as uuidlib
 
 import settings
@@ -14,7 +14,7 @@ def get_known_backups():
       fbdbs = [ x for x in os.listdir(path) if x.startswith('.flybackdb') ]
       for fbdb in fbdbs:
         try:
-          f = open( os.path.join(path, fbdb, 'flyback_properties.pickle') )
+          f = open( os.path.join(path, fbdb, 'flyback_properties.pickle'), 'rb' )
           o = pickle.load(f)
           f.close()
           backups.append(o)
@@ -189,7 +189,7 @@ def init_backup(uuid, host, path):
   s = ''.join(s)
   
   # write config info
-  f = open( os.path.join(git_dir, 'flyback_properties.pickle'), 'w' )
+  f = open( os.path.join(git_dir, 'flyback_properties.pickle'), 'wb' )
   o = {
     'uuid':uuid,
     'host':host,
@@ -249,7 +249,7 @@ def get_preferences(uuid, host, path):
   preferences = dict(settings.DEFAULT_PREFERENCES)
   git_dir = get_git_dir(uuid, host, path)
   try:
-    f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'r' )
+    f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'rb' )
     o = pickle.load(f)
     f.close()
     if o:
@@ -266,7 +266,7 @@ def save_preferences(uuid, host, path, preferences):
       preferences_diff[k] = v
   git_dir = get_git_dir(uuid, host, path)
   try:
-    f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'w' )
+    f = open( os.path.join(git_dir, 'flyback_preferences.pickle'), 'wb' )
     pickle.dump(preferences_diff, f)
     f.close()
   except:
@@ -309,12 +309,21 @@ def get_revisions(uuid, host, path):
   f.close()
   s = ''.join(s)
   
+  # load verification history
+  try:
+    f = open( os.path.join(git_dir, 'revision_verifications.pickle'), 'rb' )
+    revision_verifications = pickle.load(f)
+    f.close()
+  except:
+    revision_verifications = {}
+  
   log = []
   if s:
     entry = None
     for line in s.split('\n'):
       if line.startswith('commit'):
         if entry:
+          entry['verified'] = revision_verifications.get(entry['commit'])
           log.append(entry)
         entry = {'commit':line[line.index(' '):].strip(), 'message':''}
       elif line.startswith('Author: '):
@@ -324,6 +333,7 @@ def get_revisions(uuid, host, path):
       else:
         entry['message'] += line
     if entry:
+      entry['verified'] = revision_verifications.get(entry['commit'])
       log.append(entry)
 
   rmdir(tmp)
@@ -368,6 +378,40 @@ def export_revision(uuid, host, path, rev, target_path):
   rmdir(tmp)
   os.chdir(util.RUN_FROM_DIR)
   return fn
+
+
+def verify_revision(uuid, host, path, rev):
+  tmp = tempfile.mkdtemp(suffix='_flyback')
+  os.chdir(tmp)
+  git_dir = get_git_dir(uuid, host, path)
+  git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="%s" git ' % (git_dir,tmp)
+  cmd = git_cmd + 'archive %s > /dev/null' % (rev)
+  print '$', cmd
+  f = os.popen(cmd)
+  s = []
+  for line in f:
+    s.append(line)
+    sys.stdout.write(line)
+  f.close()
+  s = ''.join(s)
+  rmdir(tmp)
+  os.chdir(util.RUN_FROM_DIR)
+
+  # save verification history
+  print 1
+  try:
+    f = open( os.path.join(git_dir, 'revision_verifications.pickle'), 'rb' )
+    revision_verifications = pickle.load(f)
+    print 2
+    f.close()
+  except:
+    revision_verifications = {}
+  print 3
+  revision_verifications[rev] = datetime.datetime.now()
+  f = open( os.path.join(git_dir, 'revision_verifications.pickle'), 'wb' )
+  pickle.dump(revision_verifications,f)
+  f.close()
+  print 4
 
 
 def get_status(uuid, host, path):

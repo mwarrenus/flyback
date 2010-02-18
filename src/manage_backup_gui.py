@@ -20,7 +20,9 @@ class GUI(object):
     treeview_revisions_model = treeview_revisions_widget.get_model()
     treeview_revisions_model.clear()
     for rev in revisions:
-      s = '%s\n<i>%s</i>' % ( util.pango_escape(rev['date']), util.pango_escape(rev['author']) )
+      s = 'Captured on: %s\nBy: <i>%s</i>' % ( util.pango_escape(rev['date']), util.pango_escape(rev['author']) )
+      if rev['verified']:
+        s += '\nVerified on: %s' % util.pango_escape(rev['verified']) #.strftime('%')
       treeview_revisions_model.append((s,rev['commit']))
       
   def update_files(self,a=None):
@@ -128,6 +130,23 @@ class GUI(object):
     T().start()
 
     
+  def start_verify(self):
+    rev = self.get_selected_revision()
+    icon = self.main_window.render_icon(gtk.STOCK_DIALOG_QUESTION, gtk.ICON_SIZE_MENU)
+    running_tasks_model = self.xml.get_widget('running_tasks').get_model()
+    i = running_tasks_model.append( ( icon, util.pango_escape('verifying revision: '+rev), datetime.datetime.now(), '' ) )
+    gui = self
+    
+    class T(threading.Thread):
+      def run(self):
+        fn = backup.verify_revision( gui.uuid, gui.host, gui.path, rev )
+        gtk.gdk.threads_enter()
+        gui.update_revisions()
+        running_tasks_model.remove(i)
+        gtk.gdk.threads_leave()
+    T().start()
+
+    
   def start_status(self):
     icon = self.main_window.render_icon(gtk.STOCK_FIND, gtk.ICON_SIZE_MENU)
     running_tasks_model = self.xml.get_widget('running_tasks').get_model()
@@ -174,6 +193,7 @@ class GUI(object):
     self.xml.get_widget('toolbutton_status').connect('clicked', lambda x: self.start_status() )
     self.xml.get_widget('toolbutton_export').connect('clicked', lambda x: self.start_export() )
     self.xml.get_widget('toolbutton_explore').connect('clicked', lambda x: self.start_explore() )
+    self.xml.get_widget('toolbutton_verify').connect('clicked', lambda x: self.start_verify() )
     self.xml.get_widget('toolbutton_preferences').connect('clicked', lambda x: self.open_preferences() )
     
     # revision list

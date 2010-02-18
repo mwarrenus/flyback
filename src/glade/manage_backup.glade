@@ -93,6 +93,19 @@
               </packing>
             </child>
             <child>
+              <widget class="GtkToolButton" id="toolbutton_verify">
+                <property name="visible">True</property>
+                <property name="is_important">True</property>
+                <property name="label" translatable="yes">Verify</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-dialog-question</property>
+              </widget>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
               <widget class="GtkSeparatorToolItem" id="toolbutton4">
                 <property name="visible">True</property>
               </widget>

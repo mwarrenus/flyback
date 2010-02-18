@@ -6,11 +6,14 @@ RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 
 
 def pango_escape(message):
-	assert isinstance(message, basestring)
-	message = "&amp;".join(message.split("&"))
-	message = "&lt;".join(message.split("<"))
-	message = "&gt;".join(message.split(">"))
-	return message
+  if message is None:
+    return 'None'
+  if not isinstance(message, basestring):
+    message = str(message)
+  message = "&amp;".join(message.split("&"))
+  message = "&lt;".join(message.split("<"))
+  message = "&gt;".join(message.split(">"))
+  return message
 
 
 def open_file(fn):
