@@ -1,20 +1,21 @@
+#!/bin/sh
+
 set -x
 VERSION="`python src/settings.py`"
-VERSION="${VERSION}_r`svnversion .`"
 echo $VERSION
 cd debs
 mkdir flyback
 cp ../src/* flyback
 cd flyback
 rm -Rf debs debian
-find .svn | xargs rm -Rf
+find .hg | xargs rm -Rf
 cd ..
 mv flyback flyback-$VERSION
 tar -czvvf flyback-$VERSION.tar.gz flyback-$VERSION
 cd flyback-$VERSION
 #dh_make -e public@kered.org -c GPL -f ../flyback-$VERSION.tar.gz 
 cp -R ../../debian .
-rm -Rf debian/.svn
+rm -Rf debian/.hg
 echo "flyback ($VERSION-1) unstable; urgency=low" > debian/changelog
 fakeroot debian/rules binary
 cd ..
