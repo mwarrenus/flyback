@@ -52,10 +52,11 @@ def get_gvfs_devices():
 def get_gvfs_devices_and_paths():
   l = []
   gvfs_dir = os.path.join( os.path.expanduser('~'), '.gvfs')
-  for x in os.listdir(gvfs_dir):
-    mount_point = os.path.join( gvfs_dir, x )
-    uuid = str(uuidlib.uuid5(UUID_GVFS, mount_point))
-    l.append( (uuid, mount_point) )
+  if os.path.exists(gvfs_dir):
+    for x in os.listdir(gvfs_dir):
+      mount_point = os.path.join( gvfs_dir, x )
+      uuid = str(uuidlib.uuid5(UUID_GVFS, mount_point))
+      l.append( (uuid, mount_point) )
   return l
   
 def get_local_devices():
