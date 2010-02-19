@@ -145,7 +145,7 @@ def get_free_space(uuid):
   f = os.popen(cmd)
   s = f.read()
   f.close()
-  line = s.split('\n')[1]
+  line = s.split('\n',1)[1]
   x = line.strip().split()
   print x
   if int(x[1])==0: return -1 # unknown amount of space
