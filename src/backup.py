@@ -337,7 +337,7 @@ def get_revisions(uuid, host, path):
     sys.stdout.write(line)
   s = ''.join(s)
   if f.close():
-    raise Exception(s)
+    pass #raise Exception(s)
   
   # load verification history
   try:
