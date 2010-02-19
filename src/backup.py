@@ -186,8 +186,9 @@ def init_backup(uuid, host, path):
   for line in f:
     s.append(line)
     sys.stdout.write(line)
-  f.close()
   s = ''.join(s)
+  if f.close():
+    raise Exception(s)
   
   # write config info
   f = open( os.path.join(git_dir, 'flyback_properties.pickle'), 'wb' )
@@ -208,6 +209,26 @@ def init_backup(uuid, host, path):
   os.chdir(util.RUN_FROM_DIR)
   return
   
+  
+def get_new_files(uuid, host, path):
+  git_dir = get_git_dir(uuid, host, path)
+  
+  # get files that exist now
+  f = os.popen('find "%s"' % path)
+  existing_files = f.read().split('\n')
+  f.close()
+  existing_files = set([ x[len(path):].lstrip('/') for x in existing_files ])
+  
+  # get files in revision
+  revisions = get_revisions(uuid, host, path)
+  if revisions:
+    print 'revisions', revisions
+    rev_files = set(get_files_for_revision(uuid, host, path, revisions[0]['commit']))
+  else:
+    rev_files = set()
+  
+  return existing_files - rev_files
+  
 
 def backup(uuid, host, path):
   assert test_backup_assertions(uuid, host, path)
@@ -216,34 +237,41 @@ def backup(uuid, host, path):
   if not os.path.exists(git_dir):
     init_backup(uuid, host, path)
   os.chdir(path)
-  git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="." git ' % (git_dir,)
+  git_cmd = 'GIT_DIR="%s" GIT_WORK_TREE="%s" git ' % (git_dir,path)
   
   # add any new files
-  cmd = git_cmd + 'add -v *'
+  for fn in get_new_files(uuid, host, path):
+    cmd = git_cmd + 'add -v "%s"' % fn
+    print '$', cmd
+    f = os.popen(cmd)
+    for line in f:
+      sys.stdout.write(line)
+    f.close()
+  
+  # commit
+  cmd = git_cmd + 'commit -v . -m "commited by: %s v%s"' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION)
   print '$', cmd
   f = os.popen(cmd)
   s = []
   for line in f:
     s.append(line)
     sys.stdout.write(line)
-  f.close()
   s = ''.join(s)
-  
-  # commit
-  cmd = git_cmd + 'commit -v . -m "commited by: %s v%s"' % (settings.PROGRAM_NAME, settings.PROGRAM_VERSION)
-  print '$', cmd
-  f = os.popen(cmd)
-  for line in f:
-    sys.stdout.write(line)
-  f.close()
+  exit_code = f.close()
+  if exit_code>0 and exit_code!=256:
+    print 'exit_code', exit_code
+    raise Exception(s)
 
   # repack
   cmd = git_cmd + 'repack -A -d --max-pack-size=2000'
   print '$', cmd
   f = os.popen(cmd)
+  s = []
   for line in f:
     sys.stdout.write(line)
-  f.close()
+  s = ''.join(s)
+  if f.close():
+    raise Exception(s)
 
 
 def get_preferences(uuid, host, path):
@@ -307,8 +335,9 @@ def get_revisions(uuid, host, path):
   for line in f:
     s.append(line)
     sys.stdout.write(line)
-  f.close()
   s = ''.join(s)
+  if f.close():
+    raise Exception(s)
   
   # load verification history
   try:
@@ -354,10 +383,11 @@ def get_files_for_revision(uuid, host, path, rev):
   s = []
   for line in f:
     s.append(line)
-  f.close()
-  s = ''.join(s)
   rmdir(tmp)
   os.chdir(util.RUN_FROM_DIR)
+  s = ''.join(s)
+  if f.close():
+    raise Exception(s)
   return [ x.strip('"') for x in s.split('\n') ]
 
 
@@ -374,10 +404,11 @@ def export_revision(uuid, host, path, rev, target_path):
   for line in f:
     s.append(line)
     sys.stdout.write(line)
-  f.close()
-  s = ''.join(s)
   rmdir(tmp)
   os.chdir(util.RUN_FROM_DIR)
+  s = ''.join(s)
+  if f.close():
+    raise Exception(s)
   return fn
 
 
@@ -393,10 +424,11 @@ def verify_revision(uuid, host, path, rev):
   for line in f:
     s.append(line)
     sys.stdout.write(line)
-  f.close()
-  s = ''.join(s)
   rmdir(tmp)
   os.chdir(util.RUN_FROM_DIR)
+  s = ''.join(s)
+  if f.close():
+    raise Exception(s)
 
   # save verification history
   print 1
