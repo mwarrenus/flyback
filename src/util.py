@@ -1,6 +1,9 @@
 from __future__ import division
 import datetime, os, sys, threading, time
 
+# fix for python <2.6
+if not hasattr(threading.Thread, "is_alive"):
+  threading.Thread.is_alive = threading.Thread.isAlive
 
 RUN_FROM_DIR = os.path.abspath(os.path.dirname(sys.argv[0]))
 
