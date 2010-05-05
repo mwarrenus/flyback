@@ -17,7 +17,15 @@ cd flyback-$VERSION
 cp -R ../../debian .
 rm -Rf debian/.hg
 echo "flyback ($VERSION-1) unstable; urgency=low" > debian/changelog
+
+cp debian/control.karmic debian/control
 fakeroot debian/rules binary
+mv ../flyback_$VERSION-1_all.deb ../flyback-karmic_$VERSION-1_all.deb
+
+cp debian/control.lucid debian/control
+fakeroot debian/rules binary
+mv ../flyback_$VERSION-1_all.deb ../flyback-lucid_$VERSION-1_all.deb
+
 cd ..
 rm -Rf flyback
 rm -Rf flyback-$VERSION
